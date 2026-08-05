@@ -1,0 +1,102 @@
+# =============================================================
+#  .gitignore — Projeto Android: app/IFRota
+# =============================================================
+
+# -------------------------------------------------------------
+# Android — Build & Gradle
+# -------------------------------------------------------------
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+build/
+*/build/
+.gradle/
+*/local.properties
+gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Arquivos de assinatura / keystore
+*.jks
+*.keystore
+
+# Proguard gerado
+proguard/
+*.map
+
+# Lint
+lint/
+*.lint
+
+# -------------------------------------------------------------
+# Artefatos gerados em app/IFRota
+# -------------------------------------------------------------
+app/IFRota/.glade
+app/IFRota/~
+app/IFRota/*.bak
+app/IFRota/*.tmp
+app/IFRota/*.log
+app/IFRota/*.jar
+
+# Padrão global para esses tipos (fora do diretório acima também)
+*.bak
+*.tmp
+*.log
+
+# -------------------------------------------------------------
+# Python
+# -------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+*.egg
+.eggs/
+venv/
+.venv/
+env/
+.env/
+pip-wheel-metadata/
+
+# -------------------------------------------------------------
+# Editor / IDE
+# -------------------------------------------------------------
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# JetBrains / IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# Vim / Nano
+*.swp
+*.swo
+*~
+
+# -------------------------------------------------------------
+# Diversos
+# -------------------------------------------------------------
+*.orig
+*.rej
+.cache/
+.tmp/
+Thumbs.db
