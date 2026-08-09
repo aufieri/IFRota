@@ -10,40 +10,49 @@
 *.ap_
 *.dex
 *.class
+*.iml
+*.jks
+*.keystore
+*.map
+*.lint
 
 build/
 */build/
 .gradle/
+.externalNativeBuild/
+.cxx/
+captures/
+proguard/
+lint/
+
+local.properties
 */local.properties
 gradle-wrapper.jar
 !gradle-wrapper.properties
 
-# Arquivos de assinatura / keystore
-*.jks
-*.keystore
-
-# Proguard gerado
-proguard/
-*.map
-
-# Lint
-lint/
-*.lint
+# -------------------------------------------------------------
+# Firebase
+# -------------------------------------------------------------
+**/google-services.json
 
 # -------------------------------------------------------------
 # Artefatos gerados em app/IFRota
 # -------------------------------------------------------------
 app/IFRota/.glade
 app/IFRota/~
-app/IFRota/*.bak
-app/IFRota/*.tmp
-app/IFRota/*.log
 app/IFRota/*.jar
 
-# Padrão global para esses tipos (fora do diretório acima também)
+# -------------------------------------------------------------
+# Temporários (global)
+# -------------------------------------------------------------
 *.bak
 *.tmp
 *.log
+*.orig
+*.rej
+*.swp
+*.swo
+*~
 
 # -------------------------------------------------------------
 # Python
@@ -53,9 +62,9 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
-dist/
 *.egg
 .eggs/
+dist/
 venv/
 .venv/
 env/
@@ -70,10 +79,10 @@ pip-wheel-metadata/
 .DS_Store
 .AppleDouble
 .LSOverride
+Thumbs.db
 
 # JetBrains / IntelliJ / Android Studio
 .idea/
-*.iml
 *.iws
 *.ipr
 out/
@@ -87,16 +96,8 @@ out/
 .classpath
 .settings/
 
-# Vim / Nano
-*.swp
-*.swo
-*~
-
 # -------------------------------------------------------------
-# Diversos
+# Cache
 # -------------------------------------------------------------
-*.orig
-*.rej
 .cache/
 .tmp/
-Thumbs.db
