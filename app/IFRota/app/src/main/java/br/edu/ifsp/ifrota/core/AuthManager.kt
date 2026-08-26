@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import br.edu.ifsp.ifrota.views.CadastrosView
 import br.edu.ifsp.ifrota.views.HomeView
 import br.edu.ifsp.ifrota.views.LoginView
 import com.google.firebase.auth.FirebaseAuth
@@ -32,7 +33,15 @@ fun AuthManager() {
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }
                     }
+                },
+                onNavigateToCadastros = {
+                    navController.navigate("cadastros")
                 }
+            )
+        }
+        composable("cadastros") {
+            CadastrosView(
+                onBack = { navController.popBackStack() }
             )
         }
     }

@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun HomeView(onLogout: () -> Unit) {
+fun HomeView(onLogout: () -> Unit, onNavigateToCadastros: () -> Unit) {
     val user = FirebaseAuth.getInstance().currentUser
 
     Column(
@@ -30,6 +30,15 @@ fun HomeView(onLogout: () -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(48.dp))
+
+        Button(
+            onClick = onNavigateToCadastros,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Cadastros")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = onLogout,
