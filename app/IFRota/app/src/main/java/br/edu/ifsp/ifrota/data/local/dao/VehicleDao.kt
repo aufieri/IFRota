@@ -24,6 +24,23 @@ interface VehicleDao {
     @Query("SELECT * FROM vehicles WHERE id = :id")
     suspend fun getById(id: String): VehicleEntity?
 
-    @Query("SELECT * FROM vehicles ORDER BY plate ASC")
+
+    @Query("SELECT * FROM vehicles WHERE isDeleted = 0 ORDER BY plate ASC")
     fun getAll(): Flow<List<VehicleEntity>>
+
+
+    @Query("SELECT * FROM vehicles WHERE isSynced = 0")
+    suspend fun getUnsynced(): List<DriverEntity>
+
+
+    @Query("UPDATE vehicles SET isSynced = 1 WHERE id = :id")
+    suspend fun markAsSynced(id: String)
+
+
+    @Query("DELETE FROM vehicles WHERE id = :id AND isDeleted = 1")
+    suspend fun purgeIfDeleted(id: String)
+
+
+    @androidx.room.Upsert
+    suspend fun upsert(driver: DriverEntity)
 }

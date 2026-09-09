@@ -10,5 +10,11 @@ data class VehicleEntity(
     val plate: String,
     val model: String,
     val vehicleType: String,
-    val capacityKg: Double
+    val capacityKg: Double,
+
+    val isSynced: Boolean = false,
+
+    val isDeleted: Boolean = false,
+
+    val updatedAt: Long = System.currentTimeMillis()
 )

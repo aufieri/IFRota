@@ -9,5 +9,11 @@ data class DriverEntity(
     val id: String,
     val name: String,
     val cnh: String,
-    val phone: String
+    val phone: String,
+
+    val isSynced: Boolean = false,
+
+    val isDeleted: Boolean = false,
+
+    val updatedAt: Long = System.currentTimeMillis()
 )
