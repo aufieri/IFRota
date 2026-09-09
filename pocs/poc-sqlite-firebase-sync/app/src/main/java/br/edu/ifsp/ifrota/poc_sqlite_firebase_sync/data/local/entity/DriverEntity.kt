@@ -1,0 +1,19 @@
+package br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "drivers")
+data class DriverEntity(
+    @PrimaryKey
+    val id: String = "",
+    val name: String = "",
+    val cnh: String = "",
+    val phone: String = "",
+
+    val isSynced: Boolean = false,
+
+    val isDeleted: Boolean = false,
+
+    val updatedAt: Long = System.currentTimeMillis()
+)
