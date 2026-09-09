@@ -30,7 +30,7 @@ interface VehicleDao {
 
 
     @Query("SELECT * FROM vehicles WHERE isSynced = 0")
-    suspend fun getUnsynced(): List<DriverEntity>
+    suspend fun getUnsynced(): List<VehicleEntity>
 
 
     @Query("UPDATE vehicles SET isSynced = 1 WHERE id = :id")
@@ -42,5 +42,5 @@ interface VehicleDao {
 
 
     @androidx.room.Upsert
-    suspend fun upsert(driver: DriverEntity)
+    suspend fun upsert(vehicle: VehicleEntity)
 }
