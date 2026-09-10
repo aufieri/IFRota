@@ -1,4 +1,4 @@
-package br.edu.ifsp.ifrota.poc_sqlite_fireabse_sync.ui.theme
+package br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

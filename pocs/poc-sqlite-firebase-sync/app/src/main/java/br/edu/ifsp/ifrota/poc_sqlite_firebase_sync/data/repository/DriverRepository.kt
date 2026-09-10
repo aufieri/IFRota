@@ -1,8 +1,8 @@
-package br.edu.ifsp.ifrota.data.repository
+package br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.repository
 
-import br.edu.ifsp.ifrota.data.local.dao.DriverDao
-import br.edu.ifsp.ifrota.data.local.entity.DriverEntity
-import br.edu.ifsp.ifrota.data.sync.SyncManager
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.dao.DriverDao
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity.DriverEntity
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.sync.SyncManager
 import kotlinx.coroutines.flow.Flow
 
 class DriverRepository(

@@ -1,14 +1,15 @@
 package br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.sync
 
 import android.util.Log
-import br.edu.ifsp.ifrota.data.local.dao.DriverDao
-import br.edu.ifsp.ifrota.data.local.dao.VehicleDao
-import br.edu.ifsp.ifrota.data.local.entity.DriverEntity
-import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.dao.DriverDao
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.dao.VehicleDao
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity.DriverEntity
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity.VehicleEntity
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.ktx.toObject
+import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,19 +21,28 @@ private const val TAG = "SyncManager"
 class SyncManager(
     private val driverDao: DriverDao,
     private val vehicleDao: VehicleDao,
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var driversListener: ListenerRegistration? = null
     private var vehiclesListener: ListenerRegistration? = null
 
+    private suspend fun ensureAuthenticated() {
+        if (auth.currentUser == null) {
+            auth.signInAnonymously().await()
+        }
+    }
+
     suspend fun syncAll() {
+        ensureAuthenticated()
         pushDrivers()
         pushVehicles()
     }
 
     suspend fun pushDrivers() {
+        ensureAuthenticated()
         driverDao.getUnsynced().forEach { driver ->
             try {
                 val docRef = firestore.collection("drivers").document(driver.id)
@@ -50,6 +60,7 @@ class SyncManager(
     }
 
     suspend fun pushVehicles() {
+        ensureAuthenticated()
         vehicleDao.getUnsynced().forEach { vehicle ->
             try {
                 val docRef = firestore.collection("vehicles").document(vehicle.id)
@@ -67,29 +78,33 @@ class SyncManager(
     }
 
     fun startListening() {
-        if (driversListener == null) {
-            driversListener = firestore.collection("drivers")
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null || snapshot == null) {
-                        Log.w(TAG, "Listener drivers falhou", error)
-                        return@addSnapshotListener
+        scope.launch {
+            ensureAuthenticated()
+
+            if (driversListener == null) {
+                driversListener = firestore.collection("drivers")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null || snapshot == null) {
+                            Log.w(TAG, "Listener drivers falhou", error)
+                            return@addSnapshotListener
+                        }
+                        snapshot.documentChanges.forEach { change ->
+                            scope.launch { applyDriverChange(change) }
+                        }
                     }
-                    snapshot.documentChanges.forEach { change ->
-                        scope.launch { applyDriverChange(change) }
+            }
+            if (vehiclesListener == null) {
+                vehiclesListener = firestore.collection("vehicles")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null || snapshot == null) {
+                            Log.w(TAG, "Listener vehicles falhou", error)
+                            return@addSnapshotListener
+                        }
+                        snapshot.documentChanges.forEach { change ->
+                            scope.launch { applyVehicleChange(change) }
+                        }
                     }
-                }
-        }
-        if (vehiclesListener == null) {
-            vehiclesListener = firestore.collection("vehicles")
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null || snapshot == null) {
-                        Log.w(TAG, "Listener vehicles falhou", error)
-                        return@addSnapshotListener
-                    }
-                    snapshot.documentChanges.forEach { change ->
-                        scope.launch { applyVehicleChange(change) }
-                    }
-                }
+            }
         }
     }
 

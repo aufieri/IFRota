@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity.VehicleEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

@@ -27,8 +27,6 @@ lint/
 
 local.properties
 */local.properties
-gradle-wrapper.jar
-!gradle-wrapper.properties
 
 # -------------------------------------------------------------
 # Firebase

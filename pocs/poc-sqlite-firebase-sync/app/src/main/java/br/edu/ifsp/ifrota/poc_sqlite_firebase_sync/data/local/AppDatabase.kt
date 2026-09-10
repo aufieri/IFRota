@@ -4,10 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import br.edu.ifsp.ifrota.data.local.dao.DriverDao
-import br.edu.ifsp.ifrota.data.local.dao.VehicleDao
-import br.edu.ifsp.ifrota.data.local.entity.DriverEntity
-import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.dao.DriverDao
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.dao.VehicleDao
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity.DriverEntity
+import br.edu.ifsp.ifrota.poc_sqlite_firebase_sync.data.local.entity.VehicleEntity
 
 @Database(
     entities = [VehicleEntity::class, DriverEntity::class],
