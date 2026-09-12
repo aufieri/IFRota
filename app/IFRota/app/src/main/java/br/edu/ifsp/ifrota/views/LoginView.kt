@@ -1,157 +1,219 @@
 package br.edu.ifsp.ifrota.views
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.google.firebase.auth.FirebaseAuth
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import br.edu.ifsp.ifrota.ui.components.IFRotaTextField
+import br.edu.ifsp.ifrota.ui.components.PrimaryButton
+import br.edu.ifsp.ifrota.ui.theme.Green600
+import br.edu.ifsp.ifrota.ui.theme.RedBorder
+import br.edu.ifsp.ifrota.ui.theme.Red100
+import br.edu.ifsp.ifrota.ui.theme.Red600
+import br.edu.ifsp.ifrota.ui.theme.Surface1
+import br.edu.ifsp.ifrota.ui.theme.Text1
+import br.edu.ifsp.ifrota.ui.theme.Text3
+import br.edu.ifsp.ifrota.ui.viewmodel.LoginViewModel
 
 @Composable
-fun LoginView(onLoginSuccess: () -> Unit) {
-    val auth = FirebaseAuth.getInstance()
+fun LoginView(
+    onNavigateToSignUp: () -> Unit,
+    viewModel: LoginViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    var email by remember { mutableStateOf("") }
-    var senha by remember { mutableStateOf("") }
-    var erro by remember { mutableStateOf("") }
-    var carregando by remember { mutableStateOf(false) }
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Green600)
+            .imePadding()
     ) {
+        BrandHero(modifier = Modifier.statusBarsPadding())
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .background(Surface1, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Surface(
-                modifier = Modifier.size(90.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocalShipping,
-                        contentDescription = "IFRota",
-                        modifier = Modifier.size(52.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "IFRota",
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Rastreamento e gerenciamento de frotas",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = {
-                    email = it
-                    erro = ""
-                },
-                label = { Text("E-mail") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = senha,
-                onValueChange = {
-                    senha = it
-                    erro = ""
-                },
-                label = { Text("Senha") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                shape = RoundedCornerShape(14.dp)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (erro.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    text = erro,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth()
+                    text = "Bem-vindo de volta",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Text1
+                )
+                Text(
+                    text = "Acesse sua conta para ver suas entregas",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Text3
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            IFRotaTextField(
+                label = "E-mail",
+                value = uiState.email,
+                onValueChange = viewModel::onEmailChange,
+                placeholder = "seu@email.com",
+                keyboardType = KeyboardType.Email,
+                capitalization = KeyboardCapitalization.None
+            )
 
-            Button(
-                onClick = {
-                    if (email.isBlank() || senha.isBlank()) {
-                        erro = "Preencha todos os campos!"
-                        return@Button
-                    }
+            IFRotaTextField(
+                label = "Senha",
+                value = uiState.password,
+                onValueChange = viewModel::onPasswordChange,
+                placeholder = "••••••••",
+                keyboardType = KeyboardType.Password,
+                capitalization = KeyboardCapitalization.None,
+                imeAction = ImeAction.Done,
+                isPassword = true,
+                passwordVisible = uiState.showPassword,
+                onTogglePassword = viewModel::togglePasswordVisibility
+            )
 
-                    carregando = true
-                    erro = ""
+            uiState.error?.let { ErrorBanner(message = it) }
 
-                    auth.signInWithEmailAndPassword(email, senha)
-                        .addOnCompleteListener { task ->
-                            carregando = false
-                            if (task.isSuccessful) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    onLoginSuccess()
-                                }
-                            } else {
-                                erro = task.exception?.message ?: "Erro ao fazer login."
-                            }
-                        }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                enabled = !carregando,
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                if (carregando) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+            PrimaryButton(
+                text = "Entrar",
+                onClick = viewModel::signIn,
+                isLoading = uiState.isLoading,
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
-                } else {
+                }
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Ainda não tem conta?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Text3
+                )
+                TextButton(onClick = onNavigateToSignUp) {
                     Text(
-                        text = "Entrar",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Criar cadastro",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Green600
                     )
                 }
             }
+
+            Text(
+                text = "Acesso restrito a entregadores cadastrados",
+                style = MaterialTheme.typography.bodySmall,
+                color = Text3,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
+    }
+}
+
+@Composable
+private fun BrandHero(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp)
+            .padding(top = 28.dp, bottom = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                .border(1.5.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(24.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.LocalShipping,
+                contentDescription = "IFRota",
+                tint = Color.White,
+                modifier = Modifier.size(44.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "IFRota",
+            style = MaterialTheme.typography.displaySmall,
+            color = Color.White
+        )
+        Text(
+            text = "Gestão de entregas para entregadores",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.72f)
+        )
+    }
+}
+
+@Composable
+internal fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Red100, RoundedCornerShape(16.dp))
+            .border(1.dp, RedBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.ErrorOutline,
+            contentDescription = null,
+            tint = Red600,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Red600
+        )
     }
 }

@@ -2,11 +2,20 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // O perfil do entregador tem como id o próprio UID: cada conta lê e escreve só o seu.
     match /drivers/{driverId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && request.auth.uid == driverId;
     }
+
+    // Veículos pertencem a quem os cadastrou, identificado pelo campo ownerId.
     match /vehicles/{vehicleId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
   }
 }

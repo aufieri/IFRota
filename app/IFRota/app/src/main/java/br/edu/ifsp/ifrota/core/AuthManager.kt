@@ -1,46 +1,56 @@
 package br.edu.ifsp.ifrota.core
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import br.edu.ifsp.ifrota.views.CadastrosView
-import br.edu.ifsp.ifrota.views.HomeView
+import br.edu.ifsp.ifrota.navigation.AuthRoutes
+import br.edu.ifsp.ifrota.ui.theme.IFRotaTheme
 import br.edu.ifsp.ifrota.views.LoginView
+import br.edu.ifsp.ifrota.views.MainScaffold
+import br.edu.ifsp.ifrota.views.SignUpView
 import com.google.firebase.auth.FirebaseAuth
-
 @Composable
 fun AuthManager() {
+    val auth = remember { FirebaseAuth.getInstance() }
+    var currentUser by remember { mutableStateOf(auth.currentUser) }
+
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { currentUser = it.currentUser }
+        auth.addAuthStateListener(listener)
+        onDispose { auth.removeAuthStateListener(listener) }
+    }
+
+    IFRotaTheme {
+        val user = currentUser
+        if (user == null) {
+            AuthNavHost()
+        } else {
+            MainScaffold(
+                userId = user.uid,
+                accountEmail = user.email.orEmpty()
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuthNavHost() {
     val navController = rememberNavController()
-    val auth = FirebaseAuth.getInstance()
 
-    val start = if (auth.currentUser != null) "home" else "login"
-
-    NavHost(navController = navController, startDestination = start) {
-        composable("login") {
-            LoginView (
-                onLoginSuccess = {
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                }
+    NavHost(navController = navController, startDestination = AuthRoutes.LOGIN) {
+        composable(AuthRoutes.LOGIN) {
+            LoginView(
+                onNavigateToSignUp = { navController.navigate(AuthRoutes.SIGN_UP) }
             )
         }
-        composable("home") {
-            HomeView (
-                onLogout = {
-                    auth.signOut()
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
-                    }
-                },
-                onNavigateToCadastros = {
-                    navController.navigate("cadastros")
-                }
-            )
-        }
-        composable("cadastros") {
-            CadastrosView(
+        composable(AuthRoutes.SIGN_UP) {
+            SignUpView(
                 onBack = { navController.popBackStack() }
             )
         }

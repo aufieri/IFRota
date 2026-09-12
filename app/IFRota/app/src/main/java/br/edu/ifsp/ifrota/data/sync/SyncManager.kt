@@ -6,25 +6,27 @@ import br.edu.ifsp.ifrota.data.local.dao.VehicleDao
 import br.edu.ifsp.ifrota.data.local.entity.DriverEntity
 import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
 import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 private const val TAG = "SyncManager"
-
 class SyncManager(
+    private val userId: String,
     private val driverDao: DriverDao,
     private val vehicleDao: VehicleDao,
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private var driversListener: ListenerRegistration? = null
+    private var driverListener: ListenerRegistration? = null
     private var vehiclesListener: ListenerRegistration? = null
 
     suspend fun syncAll() {
@@ -67,23 +69,22 @@ class SyncManager(
     }
 
     fun startListening() {
-        if (driversListener == null) {
-            driversListener = firestore.collection("drivers")
+        if (driverListener == null) {
+            driverListener = firestore.collection("drivers").document(userId)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) {
-                        Log.w(TAG, "Listener drivers falhou", error)
+                        Log.w(TAG, "Listener do perfil falhou", error)
                         return@addSnapshotListener
                     }
-                    snapshot.documentChanges.forEach { change ->
-                        scope.launch { applyDriverChange(change) }
-                    }
+                    scope.launch { applyDriverSnapshot(snapshot) }
                 }
         }
         if (vehiclesListener == null) {
             vehiclesListener = firestore.collection("vehicles")
+                .whereEqualTo("ownerId", userId)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) {
-                        Log.w(TAG, "Listener vehicles falhou", error)
+                        Log.w(TAG, "Listener de veículos falhou", error)
                         return@addSnapshotListener
                     }
                     snapshot.documentChanges.forEach { change ->
@@ -94,23 +95,24 @@ class SyncManager(
     }
 
     fun stopListening() {
-        driversListener?.remove()
+        driverListener?.remove()
         vehiclesListener?.remove()
-        driversListener = null
+        driverListener = null
         vehiclesListener = null
     }
 
-    private suspend fun applyDriverChange(change: DocumentChange) {
-        val id = change.document.id
+    fun close() {
+        stopListening()
+        scope.cancel()
+    }
 
-        if (change.type == DocumentChange.Type.REMOVED) {
-            val local = driverDao.getById(id) ?: return
-            if (local.isSynced) driverDao.upsert(local.copy(isDeleted = true, isSynced = true))
-            return
-        }
+    private suspend fun applyDriverSnapshot(snapshot: DocumentSnapshot) {
+        if (!snapshot.exists()) return
 
-        val remote = change.document.toObject<DriverEntity>().copy(id = id, isSynced = true)
-        val local = driverDao.getById(id)
+        val remote = snapshot.toObject<DriverEntity>()
+            ?.copy(id = snapshot.id, isSynced = true)
+            ?: return
+        val local = driverDao.getById(snapshot.id)
 
         val localPendingIsNewer = local != null && !local.isSynced && local.updatedAt > remote.updatedAt
         if (!localPendingIsNewer) {
