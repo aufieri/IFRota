@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,14 +30,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import br.edu.ifsp.ifrota.data.delivery.Delivery
 import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
+import br.edu.ifsp.ifrota.ui.components.DeliveryStatusBadge
 import br.edu.ifsp.ifrota.ui.components.EmptyState
 import br.edu.ifsp.ifrota.ui.components.GreenHeader
 import br.edu.ifsp.ifrota.ui.components.IFRotaCard
+import br.edu.ifsp.ifrota.ui.components.MetaChip
+import br.edu.ifsp.ifrota.ui.components.PrimaryButton
+import br.edu.ifsp.ifrota.ui.components.SecondaryButton
 import br.edu.ifsp.ifrota.ui.components.SectionLabel
+import br.edu.ifsp.ifrota.ui.components.formatDistance
+import br.edu.ifsp.ifrota.ui.components.formatDuration
 import br.edu.ifsp.ifrota.ui.components.StatTile
 import br.edu.ifsp.ifrota.ui.components.initials
 import br.edu.ifsp.ifrota.ui.theme.Amber100
@@ -42,6 +54,7 @@ import br.edu.ifsp.ifrota.ui.theme.Amber800
 import br.edu.ifsp.ifrota.ui.theme.BorderSubtle
 import br.edu.ifsp.ifrota.ui.theme.Green100
 import br.edu.ifsp.ifrota.ui.theme.Green50
+import br.edu.ifsp.ifrota.ui.theme.Green400
 import br.edu.ifsp.ifrota.ui.theme.Green600
 import br.edu.ifsp.ifrota.ui.theme.Green900
 import br.edu.ifsp.ifrota.ui.theme.Surface1
@@ -51,17 +64,23 @@ import br.edu.ifsp.ifrota.ui.theme.Text1
 import br.edu.ifsp.ifrota.ui.theme.Text2
 import br.edu.ifsp.ifrota.ui.theme.Text3
 import br.edu.ifsp.ifrota.ui.viewmodel.DashboardViewModel
+import br.edu.ifsp.ifrota.ui.viewmodel.DeliveryUiState
+import br.edu.ifsp.ifrota.ui.viewmodel.DeliveryViewModel
 import java.util.Calendar
 
 @Composable
 fun DashboardView(
     viewModel: DashboardViewModel,
+    deliveryViewModel: DeliveryViewModel,
     accountEmail: String,
     onOpenProfile: () -> Unit,
-    onOpenVehicles: () -> Unit
+    onOpenVehicles: () -> Unit,
+    onOpenDelivery: (Delivery) -> Unit,
+    onOpenRoute: () -> Unit
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val deliveries by deliveryViewModel.state.collectAsStateWithLifecycle()
 
     val greeting = remember { greetingForNow() }
     val displayName = profile?.name?.takeIf { it.isNotBlank() }
@@ -121,12 +140,31 @@ fun DashboardView(
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionLabel(text = "Próxima entrega")
-                IFRotaCard {
-                    EmptyState(
-                        emoji = "🗺️",
-                        title = "Nenhuma entrega atribuída",
-                        message = "As rotas e entregas entram nas próximas etapas. "
+                SectionLabel(
+                    text = "Próxima entrega",
+                    trailing = {
+                        Text(
+                            text = "${deliveries.doneCount}/${deliveries.deliveries.size} feitas",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Green600
+                        )
+                    }
+                )
+                val next = deliveries.currentDelivery
+                if (next == null) {
+                    IFRotaCard {
+                        EmptyState(
+                            emoji = "🎉",
+                            title = "Entregas do dia concluídas",
+                            message = "Todas as ${deliveries.deliveries.size} entregas foram feitas."
+                        )
+                    }
+                } else {
+                    NextDeliveryCard(
+                        delivery = next,
+                        state = deliveries,
+                        onOpenDetails = { onOpenDelivery(next) },
+                        onNavigate = onOpenRoute
                     )
                 }
             }
@@ -273,6 +311,79 @@ private fun VehicleSummaryRow(vehicle: VehicleEntity, onClick: () -> Unit) {
                     .background(Amber100, CircleShape)
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             )
+        }
+    }
+}
+
+/** Carta da próxima entrega, com faixa verde no topo como no protótipo. */
+@Composable
+private fun NextDeliveryCard(
+    delivery: Delivery,
+    state: DeliveryUiState,
+    onOpenDetails: () -> Unit,
+    onNavigate: () -> Unit
+) {
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Surface1, shape)
+            .border(1.5.dp, Green600, shape)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .background(Brush.horizontalGradient(listOf(Green600, Green400)))
+        )
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "ENTREGA #${delivery.order}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Green600
+                    )
+                    Text(delivery.recipient, style = MaterialTheme.typography.titleMedium, color = Text1)
+                }
+                DeliveryStatusBadge(state.statusOf(delivery))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.Place, contentDescription = null, tint = Text3, modifier = Modifier.size(16.dp))
+                Column {
+                    Text(delivery.address, style = MaterialTheme.typography.bodyMedium, color = Text2)
+                    Text(
+                        text = "${delivery.neighborhood} · ${delivery.city}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Text3
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetaChip(formatDuration(state.legSeconds(delivery)), highlighted = true)
+                MetaChip(formatDistance(state.legMeters(delivery)))
+                MetaChip(delivery.packageType)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton(
+                    text = "Ver detalhes",
+                    onClick = onOpenDetails,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                )
+                PrimaryButton(
+                    text = "Navegar",
+                    onClick = onNavigate,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    leadingIcon = { Icon(Icons.Filled.NearMe, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+            }
         }
     }
 }
