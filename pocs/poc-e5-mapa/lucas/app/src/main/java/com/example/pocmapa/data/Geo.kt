@@ -23,7 +23,7 @@ object Geo {
         val x = cos(φ1) * sin(φ2) - sin(φ1) * cos(φ2) * cos(Δλ)
         return ((Math.toDegrees(atan2(y, x)) + 360) % 360).toFloat()
     }
-    
+
     fun offset(lat: Double, lon: Double, bearing: Float, meters: Double): Pair<Double, Double> {
         val rad = Math.toRadians(bearing.toDouble())
         val dLat = meters * cos(rad) / METERS_PER_DEGREE

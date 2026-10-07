@@ -75,7 +75,6 @@ fun FleetMapScreen(viewModel: FleetViewModel) {
         mapView.getMapAsync { map ->
             val (lat, lon) = SampleFleet.DISTRIBUTION_CENTER
             map.cameraPosition = CameraPosition.Builder().target(LatLng(lat, lon)).zoom(FLEET_ZOOM).build()
-            // A bússola ficaria atrás do painel do motorista; no modo motorista o mapa já gira sozinho.
             map.uiSettings.isCompassEnabled = false
             map.addOnMapClickListener { point ->
                 val hit = map.queryRenderedFeatures(map.projection.toScreenLocation(point), VEHICLE_LAYER)

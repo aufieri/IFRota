@@ -70,4 +70,7 @@ dependencies {
     // Lifecycle & ViewModel para Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Mapa (MapLibre + OpenFreeMap, dados do OpenStreetMap)
+    implementation(libs.maplibre.android)
 }
