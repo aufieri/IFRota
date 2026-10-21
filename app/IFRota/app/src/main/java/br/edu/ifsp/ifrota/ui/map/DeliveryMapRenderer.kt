@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import br.edu.ifsp.ifrota.R
-import br.edu.ifsp.ifrota.data.simulation.DeliveryRoutes
+import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
 import br.edu.ifsp.ifrota.data.simulation.DeliveryTrip
 import br.edu.ifsp.ifrota.data.simulation.VehicleStatus
 import br.edu.ifsp.ifrota.ui.theme.Amber500
@@ -236,7 +236,7 @@ class DeliveryMapRenderer(
         val p = pose ?: return
 
         // Sem veículo escolhido não há o que desenhar no ponto de partida.
-        val vehicle = s.vehicle?.let {
+        val vehicle = s.vehicle?.takeIf { s.hasDeliveries }?.let {
             Feature.fromGeometry(Point.fromLngLat(p.lon, p.lat)).apply {
                 addStringProperty("icon", iconName(s.status))
                 addNumberProperty("heading", p.heading)
@@ -277,7 +277,7 @@ class DeliveryMapRenderer(
         .build()
 
     private fun stopFeatures(s: DeliveryUiState): FeatureCollection {
-        val (cdLat, cdLon) = DeliveryRoutes.distributionCenter
+        val (cdLat, cdLon) = DistributionCenter.position
         val cd = Feature.fromGeometry(Point.fromLngLat(cdLon, cdLat)).apply {
             addStringProperty("label", "CD")
             addStringProperty("kind", KIND_CD)
@@ -307,9 +307,9 @@ class DeliveryMapRenderer(
         val path = when {
             s == null -> emptyList()
             s.allDone -> s.deliveries.map { LatLng(it.latitude, it.longitude) } +
-                DeliveryRoutes.distributionCenter.let { (lat, lon) -> LatLng(lat, lon) }
+                DistributionCenter.position.let { (lat, lon) -> LatLng(lat, lon) }
             // Na chegada não sobra trecho: mostra o caminho que acabou de ser feito.
-            s.phase == DeliveryPhase.ARRIVED -> s.trip.points.map { LatLng(it.latitude, it.longitude) }
+            s.phase == DeliveryPhase.ARRIVED -> s.trip?.points.orEmpty().map { LatLng(it.latitude, it.longitude) }
             else -> s.remainingPath.map { LatLng(it.latitude, it.longitude) }
         }
         val points = (listOf(LatLng(pose.lat, pose.lon)) + path).distinct()

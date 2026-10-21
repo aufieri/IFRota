@@ -6,20 +6,23 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import br.edu.ifsp.ifrota.data.local.dao.DeliveryDao
 import br.edu.ifsp.ifrota.data.local.dao.DriverDao
 import br.edu.ifsp.ifrota.data.local.dao.VehicleDao
+import br.edu.ifsp.ifrota.data.local.entity.DeliveryEntity
 import br.edu.ifsp.ifrota.data.local.entity.DriverEntity
 import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
 
 @Database(
-    entities = [VehicleEntity::class, DriverEntity::class],
-    version = 3,
+    entities = [VehicleEntity::class, DriverEntity::class, DeliveryEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun vehicleDao(): VehicleDao
     abstract fun driverDao(): DriverDao
+    abstract fun deliveryDao(): DeliveryDao
 
     companion object {
         private fun SupportSQLiteDatabase.columnNames(table: String): Set<String> =
@@ -66,6 +69,33 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) = db.upgradeToV3()
         }
 
+        /** v4: tabela de entregas atribuídas pelo administrador. */
+        internal val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `deliveries` (" +
+                        "`id` TEXT NOT NULL, " +
+                        "`driverId` TEXT NOT NULL, " +
+                        "`orderNumber` INTEGER NOT NULL, " +
+                        "`recipient` TEXT NOT NULL, " +
+                        "`address` TEXT NOT NULL, " +
+                        "`neighborhood` TEXT NOT NULL, " +
+                        "`city` TEXT NOT NULL, " +
+                        "`packageType` TEXT NOT NULL, " +
+                        "`note` TEXT, " +
+                        "`latitude` REAL NOT NULL, " +
+                        "`longitude` REAL NOT NULL, " +
+                        "`status` TEXT NOT NULL, " +
+                        "`legPath` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "`isSynced` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_deliveries_driverId` ON `deliveries` (`driverId`)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -76,7 +106,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fleet_database"
                 )
-                    .addMigrations(MIGRATION_1_3, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_3, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

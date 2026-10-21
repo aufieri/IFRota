@@ -3,9 +3,35 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // O perfil do entregador tem como id o próprio UID: cada conta lê e escreve só o seu.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Administrador = documento do próprio usuário em drivers/ com role == 'admin'.
+    // O campo `role` só pode ser definido fora do app (console do Firebase / Admin SDK):
+    // as regras abaixo impedem que um cliente o crie ou altere.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/drivers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/drivers/$(request.auth.uid)).data.get('role', 'driver') == 'admin';
+    }
+
+    // O perfil do entregador tem como id o próprio UID. Cada conta lê e escreve o seu;
+    // o administrador pode ler todos (para listar os motoristas), mas não escrever.
     match /drivers/{driverId} {
-      allow read, write: if request.auth != null && request.auth.uid == driverId;
+      allow read: if signedIn() && (request.auth.uid == driverId || isAdmin());
+
+      // Ao criar o perfil, não é permitido se declarar administrador.
+      allow create: if signedIn()
+                    && request.auth.uid == driverId
+                    && request.resource.data.get('role', 'driver') == 'driver';
+
+      // O papel não pode mudar por escrita do cliente (nem de driver para admin, nem o contrário).
+      allow update: if signedIn()
+                    && request.auth.uid == driverId
+                    && request.resource.data.get('role', 'driver') == resource.data.get('role', 'driver');
+
+      allow delete: if signedIn() && request.auth.uid == driverId;
     }
 
     // Veículos pertencem a quem os cadastrou, identificado pelo campo ownerId.
@@ -16,6 +42,26 @@ service cloud.firestore {
                     && resource.data.ownerId == request.auth.uid
                     && request.resource.data.ownerId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Entregas: criadas e geridas pelo administrador; cada motorista lê só as suas e
+    // altera apenas o status delas.
+    match /deliveries/{deliveryId} {
+      allow read: if signedIn() && (resource.data.driverId == request.auth.uid || isAdmin());
+
+      // Só o administrador cria, para um motorista que exista, e sempre como pendente.
+      allow create: if isAdmin()
+                    && request.resource.data.status == 'PENDING'
+                    && request.resource.data.driverId is string
+                    && exists(/databases/$(database)/documents/drivers/$(request.resource.data.driverId));
+
+      allow update: if isAdmin()
+                    || (signedIn()
+                        && resource.data.driverId == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+                        && request.resource.data.status == 'DONE');
+
+      allow delete: if isAdmin();
     }
   }
 }

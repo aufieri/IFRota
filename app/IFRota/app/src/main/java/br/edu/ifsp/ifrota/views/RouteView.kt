@@ -59,7 +59,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.edu.ifsp.ifrota.data.delivery.Delivery
 import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
-import br.edu.ifsp.ifrota.data.simulation.DeliveryRoutes
+import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
 import br.edu.ifsp.ifrota.ui.components.ConfirmDeliverySheet
 import br.edu.ifsp.ifrota.ui.components.DeliveryNote
 import br.edu.ifsp.ifrota.ui.components.EmptyState
@@ -122,7 +122,7 @@ fun RouteView(
 
     DisposableEffect(mapView) {
         mapView.getMapAsync { map ->
-            val (lat, lon) = DeliveryRoutes.distributionCenter
+            val (lat, lon) = DistributionCenter.position
             map.cameraPosition = CameraPosition.Builder().target(LatLng(lat, lon)).zoom(OVERVIEW_ZOOM).build()
             // A bússola ficaria sob o chip; na navegação o mapa já gira sozinho.
             map.uiSettings.isCompassEnabled = false
@@ -416,10 +416,22 @@ private fun DayDonePanel(state: DeliveryUiState) {
             Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
         Column {
-            Text("Entregas do dia concluídas", style = MaterialTheme.typography.titleMedium, color = Text1)
             Text(
-                text = "${state.doneCount} de ${state.deliveries.size} entregas feitas" +
-                    (state.vehicle?.let { " com ${it.plate}" } ?: ""),
+                text = when {
+                    !state.loaded -> "Carregando entregas…"
+                    !state.hasDeliveries -> "Nenhuma entrega atribuída"
+                    else -> "Entregas concluídas"
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = Text1
+            )
+            Text(
+                text = if (!state.hasDeliveries) {
+                    "Quando o administrador atribuir entregas a você, elas aparecem aqui."
+                } else {
+                    "${state.doneCount} de ${state.deliveries.size} entregas feitas" +
+                        (state.vehicle?.let { " com ${it.plate}" } ?: "")
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = Text3
             )
@@ -525,6 +537,7 @@ private fun VehicleChoice(vehicle: VehicleEntity, selected: Boolean, onClick: ()
 private fun RouteChip(state: DeliveryUiState) {
     val remaining = state.deliveries.size - state.doneCount
     val (dotColor, title, detail) = when {
+        !state.hasDeliveries -> Triple(Amber500, "Sem entregas", null)
         state.allDone -> Triple(Green600, "Entregas concluídas", null)
         state.phase == DeliveryPhase.PLANNING ->
             Triple(Green600, "$remaining restantes", "~${formatDuration(state.remainingDaySeconds)}")

@@ -34,6 +34,9 @@ interface DriverDao {
     @Query("SELECT * FROM drivers WHERE isSynced = 0")
     suspend fun getUnsynced(): List<DriverEntity>
 
+    @Query("SELECT * FROM drivers WHERE isSynced = 0")
+    fun observeUnsynced(): Flow<List<DriverEntity>>
+
     @Query("UPDATE drivers SET isSynced = 1 WHERE id = :id")
     suspend fun markAsSynced(id: String)
 

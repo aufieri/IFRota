@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import br.edu.ifsp.ifrota.data.local.AppDatabase
+import br.edu.ifsp.ifrota.data.repository.DeliveryRepository
 import br.edu.ifsp.ifrota.data.repository.DriverRepository
 import br.edu.ifsp.ifrota.data.repository.VehicleRepository
 import br.edu.ifsp.ifrota.data.sync.SyncManager
@@ -22,10 +23,11 @@ class UserSession(
     val userId: String,
     private val database: AppDatabase
 ) {
-    val syncManager = SyncManager(userId, database.driverDao(), database.vehicleDao())
+    val syncManager = SyncManager(userId, database.driverDao(), database.vehicleDao(), database.deliveryDao())
 
     val vehicleRepository = VehicleRepository(userId, database.vehicleDao(), syncManager)
     val driverRepository = DriverRepository(userId, database.driverDao(), syncManager)
+    val deliveryRepository = DeliveryRepository(userId, database.deliveryDao(), syncManager)
 }
 
 /**
@@ -65,4 +67,5 @@ suspend fun clearLocalData(context: Context) {
     val database = AppDatabase.getDatabase(context)
     database.vehicleDao().clearAll()
     database.driverDao().clearAll()
+    database.deliveryDao().clearAll()
 }

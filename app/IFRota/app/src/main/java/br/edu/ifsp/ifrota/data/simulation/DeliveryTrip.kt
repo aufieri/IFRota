@@ -12,7 +12,7 @@ enum class VehicleStatus { IN_TRANSIT, STOPPED }
 
 /**
  * Trecho de uma entrega, da parada anterior (ou do CD) até o ponto de entrega: uma sequência
- * pré-determinada de posições, cada uma com seus dados de telemetria.
+ * de posições ao longo do trajeto gravado na entrega, cada uma com seus dados de telemetria.
  */
 class DeliveryTrip(val points: List<TelemetryPoint>) {
 
@@ -49,9 +49,6 @@ class DeliveryTrip(val points: List<TelemetryPoint>) {
         const val TICK_MILLIS = 1_500L
 
         private const val SPEED_KMH = 45
-
-        /** Trechos da rota do dia ([DeliveryRoutes]): o trecho i leva até a entrega i + 1. */
-        val legs: List<DeliveryTrip> by lazy { DeliveryRoutes.legs.map(::fromPath) }
 
         /** Percorre [path] na velocidade de cruzeiro e para no fim com as portas abertas. */
         fun fromPath(path: List<Pair<Double, Double>>): DeliveryTrip {
