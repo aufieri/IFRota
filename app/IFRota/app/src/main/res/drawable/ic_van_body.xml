@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Carroceria da van vista de cima, frente para cima. A cor é aplicada em código (status). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="26dp"
+    android:height="42dp"
+    android:viewportWidth="24"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M6,1H18A4,4 0 0,1 22,5V36A3,3 0 0,1 19,39H5A3,3 0 0,1 2,36V5A4,4 0 0,1 6,1Z" />
+</vector>
