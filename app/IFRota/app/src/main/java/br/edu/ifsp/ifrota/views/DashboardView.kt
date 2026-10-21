@@ -153,11 +153,19 @@ fun DashboardView(
                 val next = deliveries.currentDelivery
                 if (next == null) {
                     IFRotaCard {
-                        EmptyState(
-                            emoji = "🎉",
-                            title = "Entregas do dia concluídas",
-                            message = "Todas as ${deliveries.deliveries.size} entregas foram feitas."
-                        )
+                        if (deliveries.hasDeliveries) {
+                            EmptyState(
+                                emoji = "🎉",
+                                title = "Entregas concluídas",
+                                message = "Todas as ${deliveries.deliveries.size} entregas foram feitas."
+                            )
+                        } else {
+                            EmptyState(
+                                emoji = "📭",
+                                title = if (deliveries.loaded) "Nenhuma entrega atribuída" else "Carregando entregas…",
+                                message = "Quando o administrador atribuir entregas a você, elas aparecem aqui."
+                            )
+                        }
                     }
                 } else {
                     NextDeliveryCard(

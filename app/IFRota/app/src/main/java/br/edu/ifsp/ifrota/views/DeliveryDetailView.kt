@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.edu.ifsp.ifrota.data.delivery.DeliveryStatus
-import br.edu.ifsp.ifrota.data.delivery.SampleDeliveries
+import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
 import br.edu.ifsp.ifrota.ui.components.ConfirmDeliverySheet
 import br.edu.ifsp.ifrota.ui.components.DeliveryStatusBadge
 import br.edu.ifsp.ifrota.ui.components.GreenHeader
@@ -180,7 +180,7 @@ fun DeliveryDetailView(
                     }
                     Text(
                         text = "Trecho a partir " + if (delivery.order == 1) {
-                            "do CD (${SampleDeliveries.DISTRIBUTION_CENTER_NAME})"
+                            "do CD (${DistributionCenter.NAME})"
                         } else {
                             "da entrega #${delivery.order - 1}"
                         },

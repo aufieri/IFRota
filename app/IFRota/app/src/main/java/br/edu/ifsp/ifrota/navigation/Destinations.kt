@@ -32,6 +32,15 @@ enum class MainTab(
     PROFILE("perfil", "Perfil", Icons.Outlined.Person, Icons.Filled.Person)
 }
 
+/** Telas da área administrativa. */
+object AdminRoutes {
+    const val DRIVERS = "admin/motoristas"
+    const val DRIVER_ID = "driverId"
+    const val DRIVER_DETAIL = "admin/motoristas/{$DRIVER_ID}"
+
+    fun driverDetail(id: String) = "admin/motoristas/$id"
+}
+
 /** Telas internas, abertas a partir das abas e sem a barra inferior. */
 object MainRoutes {
     const val DELIVERY_ID = "id"

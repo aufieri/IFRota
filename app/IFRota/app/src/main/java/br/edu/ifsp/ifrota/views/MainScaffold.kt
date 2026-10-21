@@ -46,7 +46,7 @@ fun MainScaffold(userId: String, accountEmail: String) {
     // à troca de abas). A chave separa contas diferentes no mesmo aparelho.
     val deliveryViewModel: DeliveryViewModel = viewModel(
         key = "deliveries-$userId",
-        factory = DeliveryViewModelFactory(session.vehicleRepository)
+        factory = DeliveryViewModelFactory(session.vehicleRepository, session.deliveryRepository)
     )
 
     Scaffold(

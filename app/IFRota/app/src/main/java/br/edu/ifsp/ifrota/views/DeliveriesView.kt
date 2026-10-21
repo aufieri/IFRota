@@ -83,7 +83,11 @@ fun DeliveriesView(
         GreenHeader {
             Text("Entregas", style = MaterialTheme.typography.headlineMedium, color = Color.White)
             Text(
-                text = "${state.deliveries.size} entregas atribuídas hoje",
+                text = when (state.deliveries.size) {
+                    0 -> "Nenhuma entrega atribuída"
+                    1 -> "1 entrega atribuída"
+                    else -> "${state.deliveries.size} entregas atribuídas"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.72f),
                 modifier = Modifier.padding(top = 2.dp)
@@ -100,9 +104,15 @@ fun DeliveriesView(
             }
         }
 
-        RouteProgressStrip(state = state, onOpenDelivery = onOpenDelivery)
+        if (state.hasDeliveries) RouteProgressStrip(state = state, onOpenDelivery = onOpenDelivery)
 
-        if (visible.isEmpty()) {
+        if (!state.hasDeliveries) {
+            EmptyState(
+                emoji = "📭",
+                title = if (state.loaded) "Nenhuma entrega atribuída" else "Carregando entregas…",
+                message = "Quando o administrador atribuir entregas a você, elas aparecem aqui."
+            )
+        } else if (visible.isEmpty()) {
             EmptyState(emoji = "📭", title = "Nenhuma entrega aqui", message = "Tente outro filtro")
         } else {
             LazyColumn(
