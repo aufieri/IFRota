@@ -17,10 +17,12 @@ import br.edu.ifsp.ifrota.data.simulation.VehicleStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -185,7 +187,8 @@ class DeliveryViewModel(
             vehicleFixed = choice.fixed,
             loaded = true
         )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, DeliveryUiState())
+    }.flowOn(Dispatchers.Default)
+     .stateIn(viewModelScope, SharingStarted.Eagerly, DeliveryUiState())
 
     init {
         // Se o veículo for excluído no meio de um trecho, o trecho é encerrado.
@@ -197,9 +200,12 @@ class DeliveryViewModel(
     private fun tripOf(entity: DeliveryEntity): DeliveryTrip =
         tripCache.getOrPut(entity.id to entity.legPath) {
             // Sem trajeto gravado (documento incompleto), o trecho degenera no próprio destino.
-            DeliveryTrip.fromPath(
-                PolylineCodec.decode(entity.legPath).ifEmpty { listOf(entity.latitude to entity.longitude) }
-            )
+            // Filtra pontos inválidos que surgem quando legPath contém dados corrompidos ou
+            // fora do formato Google Encoded Polyline esperado.
+            val path = PolylineCodec.decode(entity.legPath)
+                .filter { (lat, lon) -> lat in -90.0..90.0 && lon in -180.0..180.0 }
+                .ifEmpty { listOf(entity.latitude to entity.longitude) }
+            DeliveryTrip.fromPath(path)
         }
 
     fun selectVehicle(id: String) {

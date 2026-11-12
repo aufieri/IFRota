@@ -121,7 +121,9 @@ fun RouteView(
     UseDarkStatusBarIcons()
 
     DisposableEffect(mapView) {
+        var cancelled = false
         mapView.getMapAsync { map ->
+            if (cancelled) return@getMapAsync
             val (lat, lon) = DistributionCenter.position
             map.cameraPosition = CameraPosition.Builder().target(LatLng(lat, lon)).zoom(OVERVIEW_ZOOM).build()
             // A bússola ficaria sob o chip; na navegação o mapa já gira sozinho.
@@ -136,10 +138,19 @@ fun RouteView(
                 )
             }
             map.setStyle(Style.Builder().fromUri(MAP_STYLE_URL)) { style ->
-                renderer = DeliveryMapRenderer(context, map, style, { mapView.height }, overviewPadding)
+                // O callback pode disparar depois do dispose; qualquer exceção aqui vaza pelo JNI
+                // e mata o processo nativamente — o try-catch garante que o crash não suba.
+                if (cancelled) return@setStyle
+                try {
+                    renderer = DeliveryMapRenderer(context, map, style, { mapView.height }, overviewPadding)
+                } catch (_: Exception) { }
             }
         }
-        onDispose { renderer?.release() }
+        onDispose {
+            cancelled = true
+            renderer?.release()
+            renderer = null
+        }
     }
     LaunchedEffect(renderer, state) { renderer?.update(state) }
 

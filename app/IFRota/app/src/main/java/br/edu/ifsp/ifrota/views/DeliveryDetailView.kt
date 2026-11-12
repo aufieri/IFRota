@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,8 +67,11 @@ import br.edu.ifsp.ifrota.ui.theme.Surface3
 import br.edu.ifsp.ifrota.ui.theme.Text1
 import br.edu.ifsp.ifrota.ui.theme.Text2
 import br.edu.ifsp.ifrota.ui.theme.Text3
+import br.edu.ifsp.ifrota.data.geocoding.GeocodedAddress
+import br.edu.ifsp.ifrota.data.geocoding.ReverseGeocodingRepository
 import br.edu.ifsp.ifrota.ui.viewmodel.DeliveryPhase
 import br.edu.ifsp.ifrota.ui.viewmodel.DeliveryViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun DeliveryDetailView(
@@ -81,6 +85,11 @@ fun DeliveryDetailView(
     val status = state.statusOf(delivery)
     val isCurrent = delivery.order - 1 == state.current
     var confirming by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    var geocodingLoading by remember { mutableStateOf(false) }
+    var geocodingResult by remember { mutableStateOf<GeocodedAddress?>(null) }
+    var geocodingError by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().background(Surface2)) {
         GreenHeader {
@@ -143,10 +152,23 @@ fun DeliveryDetailView(
                         }
                     }
                     HorizontalDivider(color = Surface3)
-                    InfoRow(
-                        icon = Icons.Filled.Place,
-                        label = "Endereço",
-                        value = "${delivery.address}\n${delivery.neighborhood} — ${delivery.city}"
+                    GeocodingPanel(
+                        lat = delivery.latitude,
+                        lon = delivery.longitude,
+                        loading = geocodingLoading,
+                        result = geocodingResult,
+                        error = geocodingError,
+                        onVerify = {
+                            scope.launch {
+                                geocodingLoading = true
+                                geocodingResult = null
+                                geocodingError = null
+                                ReverseGeocodingRepository.lookup(delivery.latitude, delivery.longitude)
+                                    .onSuccess { geocodingResult = it }
+                                    .onFailure { geocodingError = it.message ?: "Erro ao consultar endereço" }
+                                geocodingLoading = false
+                            }
+                        }
                     )
                     InfoRow(icon = Icons.Filled.LocalShipping, label = "Tipo de pacote", value = delivery.packageType)
                 }
@@ -275,6 +297,88 @@ fun DeliveryDetailView(
             },
             onDismiss = { confirming = false }
         )
+    }
+}
+
+@Composable
+private fun GeocodingPanel(
+    lat: Double,
+    lon: Double,
+    loading: Boolean,
+    result: GeocodedAddress?,
+    error: String?,
+    onVerify: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Surface2, RoundedCornerShape(16.dp))
+            .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "COORDENADAS",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Text3
+                )
+                Text(
+                    text = "%.6f, %.6f".format(lat, lon),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Text2
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .background(Green600, RoundedCornerShape(10.dp))
+                    .clickable(enabled = !loading, onClick = onVerify)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                if (loading) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Ver endereço",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+
+        result?.let { addr ->
+            HorizontalDivider(color = Surface3)
+            Text(
+                text = addr.formatted,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Text1
+            )
+            addr.postcode?.let { cep ->
+                Text(
+                    text = "CEP $cep",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Text3
+                )
+            }
+        }
+
+        error?.let { err ->
+            Text(
+                text = err,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
 

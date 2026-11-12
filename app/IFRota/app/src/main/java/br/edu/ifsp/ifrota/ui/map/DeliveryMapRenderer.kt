@@ -180,7 +180,13 @@ class DeliveryMapRenderer(
         val old = state
         state = newState
 
-        val target = Pose(newState.position.latitude, newState.position.longitude, newState.heading)
+        val posLat = newState.position.latitude
+        val posLon = newState.position.longitude
+        if (posLat !in -90.0..90.0 || posLon !in -180.0..180.0) {
+            draw()
+            return
+        }
+        val target = Pose(posLat, posLon, newState.heading)
         val from = pose
         animator?.cancel()
         if (from == null || old == null || newState.current != old.current || newState.index <= old.index) {
@@ -303,14 +309,27 @@ class DeliveryMapRenderer(
      * (ou, com o dia concluído, todas as paradas).
      */
     private fun overviewCamera(pose: Pose): CameraUpdate {
+        if (pose.lat !in -90.0..90.0 || pose.lon !in -180.0..180.0) {
+            return CameraUpdateFactory.newCameraPosition(
+                CameraPosition.Builder()
+                    .target(LatLng(DistributionCenter.LATITUDE, DistributionCenter.LONGITUDE))
+                    .zoom(OVERVIEW_ZOOM).bearing(0.0).tilt(0.0).build()
+            )
+        }
         val s = state
         val path = when {
             s == null -> emptyList()
-            s.allDone -> s.deliveries.map { LatLng(it.latitude, it.longitude) } +
+            s.allDone -> s.deliveries
+                .filter { it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0 }
+                .map { LatLng(it.latitude, it.longitude) } +
                 DistributionCenter.position.let { (lat, lon) -> LatLng(lat, lon) }
             // Na chegada não sobra trecho: mostra o caminho que acabou de ser feito.
-            s.phase == DeliveryPhase.ARRIVED -> s.trip?.points.orEmpty().map { LatLng(it.latitude, it.longitude) }
-            else -> s.remainingPath.map { LatLng(it.latitude, it.longitude) }
+            s.phase == DeliveryPhase.ARRIVED -> s.trip?.points.orEmpty()
+                .filter { it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0 }
+                .map { LatLng(it.latitude, it.longitude) }
+            else -> s.remainingPath
+                .filter { it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0 }
+                .map { LatLng(it.latitude, it.longitude) }
         }
         val points = (listOf(LatLng(pose.lat, pose.lon)) + path).distinct()
         val camera = if (points.size >= 2) {

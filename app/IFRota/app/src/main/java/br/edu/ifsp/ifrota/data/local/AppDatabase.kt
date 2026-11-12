@@ -107,6 +107,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "fleet_database"
                 )
                     .addMigrations(MIGRATION_1_3, MIGRATION_2_3, MIGRATION_3_4)
+                    .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
             }

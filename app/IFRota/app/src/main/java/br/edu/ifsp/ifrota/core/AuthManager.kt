@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import br.edu.ifsp.ifrota.ui.theme.Green600
 import br.edu.ifsp.ifrota.ui.theme.IFRotaTheme
 import br.edu.ifsp.ifrota.ui.theme.Surface2
+import br.edu.ifsp.ifrota.data.repository.RoleRepository
 import br.edu.ifsp.ifrota.views.AdminScaffold
 import br.edu.ifsp.ifrota.views.LoginView
 import br.edu.ifsp.ifrota.views.MainScaffold

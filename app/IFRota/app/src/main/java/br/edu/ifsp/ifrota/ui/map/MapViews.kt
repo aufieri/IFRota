@@ -84,57 +84,62 @@ fun LegPreviewMap(trip: DeliveryTrip, modifier: Modifier = Modifier) {
     val paddingPx = with(LocalDensity.current) { 28.dp.roundToPx() }
 
     DisposableEffect(mapView, trip) {
+        var cancelled = false
         mapView.getMapAsync { map ->
+            if (cancelled) return@getMapAsync
             map.uiSettings.setAllGesturesEnabled(false)
             map.uiSettings.isCompassEnabled = false
             map.uiSettings.isLogoEnabled = false
             map.uiSettings.isAttributionEnabled = false
             map.setStyle(Style.Builder().fromUri(MAP_STYLE_URL)) { style ->
-                val points = trip.points.map { Point.fromLngLat(it.longitude, it.latitude) }
-                style.addSource(GeoJsonSource("leg-source", LineString.fromLngLats(points)))
-                style.addLayer(
-                    LineLayer("leg", "leg-source").withProperties(
-                        PropertyFactory.lineColor(Green600.toArgb()),
-                        PropertyFactory.lineWidth(3.5f),
-                        PropertyFactory.lineDasharray(arrayOf(2f, 1.2f)),
-                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
+                if (cancelled) return@setStyle
+                try {
+                    val points = trip.points.map { Point.fromLngLat(it.longitude, it.latitude) }
+                    style.addSource(GeoJsonSource("leg-source", LineString.fromLngLats(points)))
+                    style.addLayer(
+                        LineLayer("leg", "leg-source").withProperties(
+                            PropertyFactory.lineColor(Green600.toArgb()),
+                            PropertyFactory.lineWidth(3.5f),
+                            PropertyFactory.lineDasharray(arrayOf(2f, 1.2f)),
+                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
+                        )
                     )
-                )
-                style.addSource(
-                    GeoJsonSource(
-                        "leg-ends",
-                        FeatureCollection.fromFeatures(
-                            listOf(
-                                Feature.fromGeometry(points.first()).apply { addStringProperty("end", "from") },
-                                Feature.fromGeometry(points.last()).apply { addStringProperty("end", "to") }
+                    style.addSource(
+                        GeoJsonSource(
+                            "leg-ends",
+                            FeatureCollection.fromFeatures(
+                                listOf(
+                                    Feature.fromGeometry(points.first()).apply { addStringProperty("end", "from") },
+                                    Feature.fromGeometry(points.last()).apply { addStringProperty("end", "to") }
+                                )
                             )
                         )
                     )
-                )
-                style.addLayer(
-                    CircleLayer("leg-ends", "leg-ends").withProperties(
-                        PropertyFactory.circleRadius(7f),
-                        PropertyFactory.circleColor(
-                            Expression.match(
-                                Expression.get("end"),
-                                Expression.color(Red500.toArgb()),
-                                Expression.stop(
-                                    "from", Expression.color(Green600.toArgb())
+                    style.addLayer(
+                        CircleLayer("leg-ends", "leg-ends").withProperties(
+                            PropertyFactory.circleRadius(7f),
+                            PropertyFactory.circleColor(
+                                Expression.match(
+                                    Expression.get("end"),
+                                    Expression.color(Red500.toArgb()),
+                                    Expression.stop(
+                                        "from", Expression.color(Green600.toArgb())
+                                    )
                                 )
-                            )
-                        ),
-                        PropertyFactory.circleStrokeWidth(2f),
-                        PropertyFactory.circleStrokeColor(Surface1.toArgb())
+                            ),
+                            PropertyFactory.circleStrokeWidth(2f),
+                            PropertyFactory.circleStrokeColor(Surface1.toArgb())
+                        )
                     )
-                )
-                val bounds = LatLngBounds.Builder()
-                    .includes(trip.points.map { LatLng(it.latitude, it.longitude) })
-                    .build()
-                map.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+                    val bounds = LatLngBounds.Builder()
+                        .includes(trip.points.map { LatLng(it.latitude, it.longitude) })
+                        .build()
+                    map.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+                } catch (_: Exception) { }
             }
         }
-        onDispose {}
+        onDispose { cancelled = true }
     }
 
     AndroidView(factory = { mapView }, modifier = modifier)
