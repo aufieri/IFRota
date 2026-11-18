@@ -1,10 +1,20 @@
 package br.edu.ifsp.ifrota.views
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import br.edu.ifsp.ifrota.data.tracking.DriverTracker
+import br.edu.ifsp.ifrota.data.tracking.TrackingRepository
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -17,6 +27,7 @@ import br.edu.ifsp.ifrota.core.clearLocalData
 import br.edu.ifsp.ifrota.core.rememberUserSession
 import br.edu.ifsp.ifrota.navigation.MainTab
 import br.edu.ifsp.ifrota.navigation.MainRoutes
+import br.edu.ifsp.ifrota.notification.GeofenceNotifier
 import br.edu.ifsp.ifrota.ui.components.IFRotaBottomBar
 import br.edu.ifsp.ifrota.ui.theme.Surface2
 import br.edu.ifsp.ifrota.ui.viewmodel.DashboardViewModel
@@ -42,12 +53,42 @@ fun MainScaffold(userId: String, accountEmail: String) {
 
     val tabs = MainTab.entries
 
+    // Entradas e saídas de perímetro viram notificações do sistema (geofencing).
+    val geofenceNotifier = remember(context) { GeofenceNotifier(context.applicationContext) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (!geofenceNotifier.canNotify() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // Rastreamento para o administrador: posição em locations/{uid} e eventos de perímetro.
+    val trackingRepository = remember { TrackingRepository() }
+    val tracker = remember(userId) { DriverTracker(userId, trackingRepository) }
+
     // Um único andamento do dia para Início, Entregas e Rotas (fora do NavHost, sobrevive
     // à troca de abas). A chave separa contas diferentes no mesmo aparelho.
     val deliveryViewModel: DeliveryViewModel = viewModel(
         key = "deliveries-$userId",
-        factory = DeliveryViewModelFactory(session.vehicleRepository, session.deliveryRepository)
+        factory = DeliveryViewModelFactory(
+            session.vehicleRepository,
+            session.deliveryRepository,
+            onGeofenceEvent = { event ->
+                geofenceNotifier.notify(event)
+                // Garante que o evento só sai com a conta dona dele logada.
+                if (FirebaseAuth.getInstance().currentUser?.uid == userId) {
+                    trackingRepository.publishEvent(userId, event)
+                }
+            }
+        )
     )
+
+    // Publica a posição enquanto a tela principal existir (inclusive com o app em segundo
+    // plano). Ao sair da conta, para antes de marcar a saída, para não sobrescrevê-la.
+    var tracking by remember { mutableStateOf(true) }
+    if (tracking) {
+        LaunchedEffect(tracker, deliveryViewModel) { tracker.run(deliveryViewModel.state) }
+    }
 
     Scaffold(
         containerColor = Surface2,
@@ -135,7 +176,9 @@ fun MainScaffold(userId: String, accountEmail: String) {
                     viewModel = profileViewModel,
                     accountEmail = accountEmail,
                     onLogout = {
+                        tracking = false
                         scope.launch {
+                            trackingRepository.markSignedOut(userId)
                             clearLocalData(context)
                             FirebaseAuth.getInstance().signOut()
                         }

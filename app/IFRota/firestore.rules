@@ -49,11 +49,13 @@ service cloud.firestore {
     match /deliveries/{deliveryId} {
       allow read: if signedIn() && (resource.data.driverId == request.auth.uid || isAdmin());
 
-      // Só o administrador cria, para um motorista que exista, e sempre como pendente.
+      // Só o administrador cria, para um motorista que exista (e não seja administrador),
+      // e sempre como pendente.
       allow create: if isAdmin()
                     && request.resource.data.status == 'PENDING'
                     && request.resource.data.driverId is string
-                    && exists(/databases/$(database)/documents/drivers/$(request.resource.data.driverId));
+                    && exists(/databases/$(database)/documents/drivers/$(request.resource.data.driverId))
+                    && get(/databases/$(database)/documents/drivers/$(request.resource.data.driverId)).data.get('role', 'driver') != 'admin';
 
       allow update: if isAdmin()
                     || (signedIn()
@@ -61,6 +63,29 @@ service cloud.firestore {
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
                         && request.resource.data.status == 'DONE');
 
+      allow delete: if isAdmin();
+    }
+
+    // Posição ao vivo de cada entregador (id = UID): só ele escreve; o administrador lê todas.
+    match /locations/{driverId} {
+      allow read: if signedIn() && (request.auth.uid == driverId || isAdmin());
+      allow create, update: if signedIn()
+                            && request.auth.uid == driverId
+                            && request.resource.data.latitude is number
+                            && request.resource.data.longitude is number
+                            && request.resource.data.updatedAt is int;
+      allow delete: if signedIn() && request.auth.uid == driverId;
+    }
+
+    // Entradas e saídas de perímetro: o entregador registra as suas (sem editar depois);
+    // o administrador lê todas e pode limpar o histórico.
+    match /geofenceEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+                    && request.resource.data.driverId == request.auth.uid
+                    && request.resource.data.transition in ['ENTER', 'EXIT']
+                    && request.resource.data.timestampMillis is int;
+      allow update: if false;
       allow delete: if isAdmin();
     }
   }
