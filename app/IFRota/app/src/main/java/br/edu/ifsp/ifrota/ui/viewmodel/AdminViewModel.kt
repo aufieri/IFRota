@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import br.edu.ifsp.ifrota.data.admin.AdminDriver
 import br.edu.ifsp.ifrota.data.admin.AdminGateway
+import br.edu.ifsp.ifrota.data.admin.AdminVehicle
 import br.edu.ifsp.ifrota.data.admin.CreateDeliveriesResult
 import br.edu.ifsp.ifrota.data.delivery.DemoDeliveryGenerator
 import br.edu.ifsp.ifrota.data.local.entity.DeliveryEntity
@@ -46,6 +47,12 @@ class AdminViewModel(
         .map<List<AdminDriver>, DriversState> { DriversState.Ready(it) }
         .catch { emit(DriversState.Error("Não foi possível carregar os motoristas. Verifique a conexão e as permissões da conta.")) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DriversState.Loading)
+
+    /** Veículos cadastrados, agrupados pelo motorista dono. */
+    val vehiclesByDriver: StateFlow<Map<String, List<AdminVehicle>>> = repository.observeVehicles()
+        .map { list -> list.groupBy { it.ownerId } }
+        .catch { emit(emptyMap()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _create = MutableStateFlow(CreateDeliveriesUiState())
     val create: StateFlow<CreateDeliveriesUiState> = _create.asStateFlow()

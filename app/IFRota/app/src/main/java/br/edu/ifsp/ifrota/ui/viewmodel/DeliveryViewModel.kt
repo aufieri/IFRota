@@ -19,6 +19,7 @@ import br.edu.ifsp.ifrota.data.routing.PolylineCodec
 import br.edu.ifsp.ifrota.data.simulation.DeliveryTrip
 import br.edu.ifsp.ifrota.data.simulation.TelemetryPoint
 import br.edu.ifsp.ifrota.data.simulation.VehicleStatus
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -171,7 +172,9 @@ class DeliveryViewModel(
     vehicles: Flow<List<VehicleEntity>>,
     deliveries: Flow<List<DeliveryEntity>>,
     private val markDone: suspend (deliveryId: String) -> Unit,
-    private val onGeofenceEvent: (GeofenceEvent) -> Unit = {}
+    private val onGeofenceEvent: (GeofenceEvent) -> Unit = {},
+    /** Onde o estado é calculado (fora da main); os testes passam o próprio dispatcher. */
+    computeDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private val geofenceMonitor = GeofenceMonitor(emptyList())
@@ -213,7 +216,7 @@ class DeliveryViewModel(
             vehicleFixed = choice.fixed,
             loaded = true
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computeDispatcher)
      .stateIn(viewModelScope, SharingStarted.Eagerly, DeliveryUiState())
 
     init {

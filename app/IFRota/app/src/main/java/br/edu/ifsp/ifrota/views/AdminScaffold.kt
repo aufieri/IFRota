@@ -57,6 +57,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import br.edu.ifsp.ifrota.core.clearLocalData
+import br.edu.ifsp.ifrota.core.rememberUserSession
 import br.edu.ifsp.ifrota.data.admin.AdminRepository
 import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
 import br.edu.ifsp.ifrota.data.geofencing.GeofenceTransition
@@ -88,6 +89,8 @@ import br.edu.ifsp.ifrota.ui.viewmodel.AdminUiState
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminViewModel
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminViewModelFactory
 import br.edu.ifsp.ifrota.ui.viewmodel.DriversState
+import br.edu.ifsp.ifrota.ui.viewmodel.ProfileViewModel
+import br.edu.ifsp.ifrota.ui.viewmodel.ProfileViewModelFactory
 import br.edu.ifsp.ifrota.ui.viewmodel.TrackedDriver
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -112,6 +115,8 @@ import java.util.Locale
 fun AdminScaffold(userId: String, accountEmail: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Sessão local (Room + sincronização) só para o perfil do próprio administrador.
+    val session = rememberUserSession(userId)
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -172,15 +177,30 @@ fun AdminScaffold(userId: String, accountEmail: String) {
             modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
         ) {
             composable(AdminTab.FLEET.route) {
-                AdminFleetView(state = trackingState, accountEmail = accountEmail, onLogout = logout)
+                AdminFleetView(state = trackingState)
             }
 
             composable(AdminTab.DRIVERS.route) {
                 AdminDriversView(
                     viewModel = adminViewModel,
                     accountEmail = accountEmail,
-                    onOpenDriver = { navController.navigate(AdminRoutes.driverDetail(it.id)) },
-                    onLogout = logout
+                    onOpenDriver = { navController.navigate(AdminRoutes.driverDetail(it.id)) }
+                )
+            }
+
+            composable(AdminTab.PROFILE.route) {
+                val profileViewModel: ProfileViewModel = viewModel(
+                    factory = ProfileViewModelFactory(
+                        session.driverRepository,
+                        session.vehicleRepository,
+                        accountEmail
+                    )
+                )
+                ProfileView(
+                    viewModel = profileViewModel,
+                    accountEmail = accountEmail,
+                    onLogout = logout,
+                    isAdmin = true
                 )
             }
 
@@ -206,7 +226,7 @@ fun AdminScaffold(userId: String, accountEmail: String) {
 
 /** Aba Frota: mapa ao vivo, lista de entregadores e eventos de perímetro. */
 @Composable
-private fun AdminFleetView(state: AdminUiState, accountEmail: String, onLogout: () -> Unit) {
+private fun AdminFleetView(state: AdminUiState) {
     val context = LocalContext.current
     val density = LocalDensity.current
 
@@ -237,17 +257,14 @@ private fun AdminFleetView(state: AdminUiState, accountEmail: String, onLogout: 
         GreenHeader {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Área Administrativa", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                    Text("Frota ao vivo", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Text(
-                        "$accountEmail · ${state.onlineCount} de ${state.drivers.size} online",
+                        "${state.onlineCount} de ${state.drivers.size} entregadores online",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.85f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
-                IconButton(onClick = onLogout) {
-                    Icon(Icons.Filled.Logout, contentDescription = "Sair", tint = Color.White)
                 }
             }
         }

@@ -49,6 +49,7 @@ enum class MainTab(
 object AdminRoutes {
     const val FLEET = "admin/frota"
     const val DRIVERS = "admin/motoristas"
+    const val PROFILE = "admin/perfil"
     const val DRIVER_ID = "driverId"
     const val DRIVER_DETAIL = "admin/motoristas/{$DRIVER_ID}"
 
@@ -63,7 +64,8 @@ enum class AdminTab(
     override val selectedIcon: ImageVector
 ) : BottomTab {
     FLEET(AdminRoutes.FLEET, "Frota", Icons.Outlined.Map, Icons.Filled.Map),
-    DRIVERS(AdminRoutes.DRIVERS, "Motoristas", Icons.Outlined.Groups, Icons.Filled.Groups)
+    DRIVERS(AdminRoutes.DRIVERS, "Motoristas", Icons.Outlined.Groups, Icons.Filled.Groups),
+    PROFILE(AdminRoutes.PROFILE, "Perfil", Icons.Outlined.Person, Icons.Filled.Person)
 }
 
 /** Telas internas, abertas a partir das abas e sem a barra inferior. */

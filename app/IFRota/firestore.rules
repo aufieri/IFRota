@@ -34,9 +34,10 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == driverId;
     }
 
-    // Veículos pertencem a quem os cadastrou, identificado pelo campo ownerId.
+    // Veículos pertencem a quem os cadastrou, identificado pelo campo ownerId. O administrador
+    // lê todos (para ver a frota de cada motorista), mas não escreve.
     match /vehicles/{vehicleId} {
-      allow read: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.ownerId == request.auth.uid || isAdmin());
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       allow update: if request.auth != null
                     && resource.data.ownerId == request.auth.uid

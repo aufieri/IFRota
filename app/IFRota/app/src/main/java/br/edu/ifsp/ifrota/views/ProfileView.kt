@@ -73,7 +73,9 @@ import br.edu.ifsp.ifrota.ui.viewmodel.ProfileViewModel
 fun ProfileView(
     viewModel: ProfileViewModel,
     accountEmail: String,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    /** Na área administrativa: sem CNH nem indicadores de entregador. */
+    isAdmin: Boolean = false
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val vehicleCount by viewModel.vehicleCount.collectAsStateWithLifecycle()
@@ -122,7 +124,7 @@ fun ProfileView(
                             color = Text3
                         )
                         Text(
-                            text = "Entregador ativo",
+                            text = if (isAdmin) "Administrador" else "Entregador ativo",
                             style = MaterialTheme.typography.labelSmall,
                             color = Green900,
                             modifier = Modifier
@@ -142,16 +144,18 @@ fun ProfileView(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile(value = vehicleCount.toString(), label = "Veículos")
-                StatTile(
-                    value = if (profile?.cnh?.isNotBlank() == true) "OK" else "—",
-                    label = "CNH informada"
-                )
-                StatTile(
-                    value = if (profile?.isSynced == true) "OK" else "…",
-                    label = "Perfil sincronizado"
-                )
+            if (!isAdmin) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatTile(value = vehicleCount.toString(), label = "Veículos")
+                    StatTile(
+                        value = if (profile?.cnh?.isNotBlank() == true) "OK" else "—",
+                        label = "CNH informada"
+                    )
+                    StatTile(
+                        value = if (profile?.isSynced == true) "OK" else "…",
+                        label = "Perfil sincronizado"
+                    )
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -168,12 +172,14 @@ fun ProfileView(
                         label = "Telefone",
                         value = profile?.phone?.takeIf { it.isNotBlank() } ?: "Não informado"
                     )
-                    RowDivider()
-                    InfoRow(
-                        icon = Icons.Default.Badge,
-                        label = "CNH",
-                        value = profile?.cnh?.takeIf { it.isNotBlank() } ?: "Não informada"
-                    )
+                    if (!isAdmin) {
+                        RowDivider()
+                        InfoRow(
+                            icon = Icons.Default.Badge,
+                            label = "CNH",
+                            value = profile?.cnh?.takeIf { it.isNotBlank() } ?: "Não informada"
+                        )
+                    }
                 }
             }
 
@@ -276,15 +282,17 @@ fun ProfileView(
                     capitalization = KeyboardCapitalization.None
                 )
 
-                IFRotaTextField(
-                    label = "CNH",
-                    value = form.cnh,
-                    onValueChange = viewModel::onCnhChange,
-                    placeholder = "00000000000",
-                    keyboardType = KeyboardType.Number,
-                    capitalization = KeyboardCapitalization.None,
-                    imeAction = ImeAction.Done
-                )
+                if (!isAdmin) {
+                    IFRotaTextField(
+                        label = "CNH",
+                        value = form.cnh,
+                        onValueChange = viewModel::onCnhChange,
+                        placeholder = "00000000000",
+                        keyboardType = KeyboardType.Number,
+                        capitalization = KeyboardCapitalization.None,
+                        imeAction = ImeAction.Done
+                    )
+                }
 
                 PrimaryButton(
                     text = "Salvar",

@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.edu.ifsp.ifrota.data.admin.AdminDriver
+import br.edu.ifsp.ifrota.data.admin.AdminVehicle
 import br.edu.ifsp.ifrota.data.delivery.DeliveryStatus
 import br.edu.ifsp.ifrota.data.delivery.DemoDeliveryGenerator
 import br.edu.ifsp.ifrota.data.local.entity.DeliveryEntity
@@ -81,6 +83,8 @@ fun AdminDriverDetailView(
     val deliveries by remember(driver.id) { viewModel.deliveriesOf(driver.id) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val create by viewModel.create.collectAsStateWithLifecycle()
+    val vehiclesByDriver by viewModel.vehiclesByDriver.collectAsStateWithLifecycle()
+    val vehicles = vehiclesByDriver[driver.id].orEmpty()
     var sheetOpen by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -165,6 +169,20 @@ fun AdminDriverDetailView(
             val success = create.message?.takeIf { !it.isError && !sheetOpen }
             if (success != null) {
                 item { MessageBanner(success, onDismiss = viewModel::consumeMessage) }
+            }
+
+            item { SectionLabel(text = "Veículos cadastrados") }
+
+            if (vehicles.isEmpty()) {
+                item {
+                    Text(
+                        text = "Este motorista ainda não cadastrou veículos. Sem veículo ele não consegue iniciar as entregas.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Text3
+                    )
+                }
+            } else {
+                items(vehicles, key = { "vehicle-${it.id}" }) { VehicleRow(it) }
             }
 
             item { SectionLabel(text = "Entregas atribuídas") }
@@ -307,6 +325,53 @@ private fun MessageBanner(message: AdminMessage, onDismiss: (() -> Unit)?) {
         )
         if (onDismiss != null) {
             Text("OK", style = MaterialTheme.typography.labelMedium, color = content)
+        }
+    }
+}
+
+@Composable
+private fun VehicleRow(vehicle: AdminVehicle) {
+    IFRotaCard {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).background(Green100, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.LocalShipping,
+                    contentDescription = null,
+                    tint = Green600,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = vehicle.plate.ifBlank { "Sem placa" },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Text1
+                )
+                Text(
+                    text = vehicle.model.ifBlank { "Modelo não informado" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Text2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (vehicle.vehicleType.isNotBlank()) MetaChip(vehicle.vehicleType)
+                if (vehicle.capacityKg > 0) {
+                    Text(
+                        text = "%.0f kg".format(vehicle.capacityKg),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Text3
+                    )
+                }
+            }
         }
     }
 }

@@ -50,10 +50,10 @@ import br.edu.ifsp.ifrota.ui.viewmodel.DriversState
 fun AdminDriversView(
     viewModel: AdminViewModel,
     accountEmail: String,
-    onOpenDriver: (AdminDriver) -> Unit,
-    onLogout: () -> Unit
+    onOpenDriver: (AdminDriver) -> Unit
 ) {
     val state by viewModel.drivers.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehiclesByDriver.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxSize().background(Surface2)) {
         GreenHeader {
@@ -83,21 +83,6 @@ fun AdminDriversView(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
-                        .border(1.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
-                        .clickable(onClick = onLogout),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Logout,
-                        contentDescription = "Sair da conta",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
             }
         }
 
@@ -120,7 +105,11 @@ fun AdminDriversView(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(s.drivers, key = { it.id }) { driver ->
-                            DriverCard(driver = driver, onClick = { onOpenDriver(driver) })
+                            DriverCard(
+                                driver = driver,
+                                vehicleCount = vehicles[driver.id].orEmpty().size,
+                                onClick = { onOpenDriver(driver) }
+                            )
                         }
                     }
                 }
@@ -129,7 +118,7 @@ fun AdminDriversView(
 }
 
 @Composable
-private fun DriverCard(driver: AdminDriver, onClick: () -> Unit) {
+private fun DriverCard(driver: AdminDriver, vehicleCount: Int, onClick: () -> Unit) {
     IFRotaCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -157,8 +146,14 @@ private fun DriverCard(driver: AdminDriver, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    MetaChip(
+                        when (vehicleCount) {
+                            0 -> "Sem veículo"
+                            1 -> "1 veículo"
+                            else -> "$vehicleCount veículos"
+                        }
+                    )
                     if (driver.phone.isNotBlank()) MetaChip(driver.phone)
-                    if (driver.cnh.isNotBlank()) MetaChip("CNH ${driver.cnh}")
                 }
             }
             Icon(

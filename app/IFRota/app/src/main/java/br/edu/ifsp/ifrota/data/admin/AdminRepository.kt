@@ -15,6 +15,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 
 /** Motorista como o administrador o vê na listagem. */
@@ -24,6 +25,16 @@ data class AdminDriver(
     val email: String,
     val phone: String,
     val cnh: String
+)
+
+/** Veículo cadastrado por um motorista, como o administrador o vê. */
+data class AdminVehicle(
+    val id: String,
+    val ownerId: String,
+    val plate: String,
+    val model: String,
+    val vehicleType: String,
+    val capacityKg: Double
 )
 
 sealed interface CreateDeliveriesResult {
@@ -40,6 +51,10 @@ sealed interface CreateDeliveriesResult {
 /** O que a tela do administrador precisa; permite testar o ViewModel sem Firestore. */
 interface AdminGateway {
     fun observeDrivers(): Flow<List<AdminDriver>>
+
+    /** Veículos de todos os motoristas (o dono é [AdminVehicle.ownerId]). */
+    fun observeVehicles(): Flow<List<AdminVehicle>> = flowOf(emptyList())
+
     fun observeDeliveries(driverId: String): Flow<List<DeliveryEntity>>
     suspend fun createDeliveries(driverId: String, batchId: String, quantity: Int): CreateDeliveriesResult
 }
@@ -69,6 +84,37 @@ class AdminRepository(
                         .filter { UserRole.fromFirestore(it.get(UserRole.FIELD)) == UserRole.DRIVER }
                         .map { it.toAdminDriver() }
                         .sortedBy { it.name.lowercase() }
+                )
+            }
+        awaitClose { registration.remove() }
+    }
+
+    /**
+     * Todos os veículos cadastrados. A leitura da coleção inteira só é aceita pelas regras do
+     * Firestore para o administrador; veículos excluídos já saem do servidor (ver `SyncManager`).
+     */
+    override fun observeVehicles(): Flow<List<AdminVehicle>> = callbackFlow {
+        val registration = firestore.collection("vehicles")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) {
+                    Log.w(TAG, "Listener de veículos falhou", error)
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(
+                    snapshot.documents
+                        .filter { it.getBoolean("deleted") != true && it.getBoolean("isDeleted") != true }
+                        .map {
+                            AdminVehicle(
+                                id = it.id,
+                                ownerId = it.getString("ownerId").orEmpty(),
+                                plate = it.getString("plate").orEmpty(),
+                                model = it.getString("model").orEmpty(),
+                                vehicleType = it.getString("vehicleType").orEmpty(),
+                                capacityKg = it.getDouble("capacityKg") ?: 0.0
+                            )
+                        }
+                        .sortedBy { it.plate }
                 )
             }
         awaitClose { registration.remove() }

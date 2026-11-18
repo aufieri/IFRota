@@ -37,7 +37,12 @@ class DeliveryViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = DeliveryViewModel(vehicles, deliveries) { confirmed += it }
+    private fun viewModel() = DeliveryViewModel(
+        vehicles,
+        deliveries,
+        markDone = { confirmed += it },
+        computeDispatcher = dispatcher
+    )
 
     /** Trecho curto (cerca de 300 m) saindo de [fromLat]. */
     private fun delivery(order: Int, status: String = DeliveryRecordStatus.PENDING, legPath: String? = null): DeliveryEntity {
