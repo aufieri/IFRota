@@ -28,8 +28,8 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,14 +48,25 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import br.edu.ifsp.ifrota.core.clearLocalData
+import br.edu.ifsp.ifrota.data.admin.AdminRepository
 import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
 import br.edu.ifsp.ifrota.data.geofencing.GeofenceTransition
 import br.edu.ifsp.ifrota.data.tracking.TrackingPhase
 import br.edu.ifsp.ifrota.data.tracking.TrackingRepository
+import br.edu.ifsp.ifrota.navigation.AdminRoutes
+import br.edu.ifsp.ifrota.navigation.AdminTab
 import br.edu.ifsp.ifrota.notification.GeofenceNotifier
 import br.edu.ifsp.ifrota.ui.components.GreenHeader
+import br.edu.ifsp.ifrota.ui.components.IFRotaBottomBar
 import br.edu.ifsp.ifrota.ui.components.IFRotaCard
 import br.edu.ifsp.ifrota.ui.components.SectionLabel
 import br.edu.ifsp.ifrota.ui.map.FleetMapRenderer
@@ -73,6 +84,10 @@ import br.edu.ifsp.ifrota.ui.theme.Text3
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminFenceEvent
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminTrackingViewModel
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminTrackingViewModelFactory
+import br.edu.ifsp.ifrota.ui.viewmodel.AdminUiState
+import br.edu.ifsp.ifrota.ui.viewmodel.AdminViewModel
+import br.edu.ifsp.ifrota.ui.viewmodel.AdminViewModelFactory
+import br.edu.ifsp.ifrota.ui.viewmodel.DriversState
 import br.edu.ifsp.ifrota.ui.viewmodel.TrackedDriver
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -84,14 +99,23 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Área administrativa: mapa ao vivo da frota, lista de entregadores com o que cada um está
- * fazendo e os eventos de perímetro, que também chegam como notificação.
+ * Área administrativa, em duas abas:
+ * - **Frota**: mapa ao vivo, o que cada entregador está fazendo e os eventos de perímetro
+ *   (que também chegam como notificação);
+ * - **Motoristas**: todos os motoristas cadastrados e, dentro de cada um, as entregas dele e
+ *   a criação de novas entregas.
+ *
+ * Só é alcançada quando o papel lido do servidor é administrador (ver `AuthManager`); o que
+ * o servidor de fato permite é decidido pelas regras do Firestore, não por esta tela.
  */
 @Composable
 fun AdminScaffold(userId: String, accountEmail: String) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val tabs = AdminTab.entries
 
     val notifier = remember(context) { GeofenceNotifier(context.applicationContext) }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -101,13 +125,90 @@ fun AdminScaffold(userId: String, accountEmail: String) {
         }
     }
 
-    val viewModel: AdminTrackingViewModel = viewModel(
-        key = "admin-$userId",
+    // Os dois ViewModels ficam fora do NavHost: sobrevivem à troca de abas.
+    val trackingViewModel: AdminTrackingViewModel = viewModel(
+        key = "admin-tracking-$userId",
         factory = AdminTrackingViewModelFactory(TrackingRepository(), userId, notifier::notify)
     )
-    // collectAsState (e não ...WithLifecycle): continua observando em segundo plano, para as
-    // notificações de perímetro chegarem com o app minimizado.
-    val state by viewModel.state.collectAsState()
+    val adminViewModel: AdminViewModel = viewModel(
+        key = "admin-$userId",
+        factory = AdminViewModelFactory(remember { AdminRepository() })
+    )
+    // collectAsState (e não ...WithLifecycle) e aqui, fora das abas: continua observando com
+    // o app em segundo plano ou na aba Motoristas, para as notificações de perímetro chegarem.
+    val trackingState by trackingViewModel.state.collectAsState()
+
+    val logout: () -> Unit = {
+        scope.launch {
+            clearLocalData(context)
+            FirebaseAuth.getInstance().signOut()
+        }
+    }
+
+    Scaffold(
+        containerColor = Surface2,
+        bottomBar = {
+            // O detalhe do motorista ocupa a tela toda, como as telas internas do motorista.
+            if (tabs.any { it.route == currentRoute }) {
+                IFRotaBottomBar(
+                    tabs = tabs,
+                    currentRoute = currentRoute,
+                    onTabSelected = { tab ->
+                        if (tab.route != currentRoute) {
+                            navController.navigate(tab.route) {
+                                popUpTo(AdminTab.FLEET.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = AdminTab.FLEET.route,
+            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+        ) {
+            composable(AdminTab.FLEET.route) {
+                AdminFleetView(state = trackingState, accountEmail = accountEmail, onLogout = logout)
+            }
+
+            composable(AdminTab.DRIVERS.route) {
+                AdminDriversView(
+                    viewModel = adminViewModel,
+                    accountEmail = accountEmail,
+                    onOpenDriver = { navController.navigate(AdminRoutes.driverDetail(it.id)) },
+                    onLogout = logout
+                )
+            }
+
+            composable(
+                route = AdminRoutes.DRIVER_DETAIL,
+                arguments = listOf(navArgument(AdminRoutes.DRIVER_ID) { type = NavType.StringType })
+            ) { entry ->
+                val driverId = entry.arguments?.getString(AdminRoutes.DRIVER_ID).orEmpty()
+                val drivers by adminViewModel.drivers.collectAsStateWithLifecycle()
+                val driver = (drivers as? DriversState.Ready)?.drivers?.find { it.id == driverId }
+
+                if (driver != null) {
+                    AdminDriverDetailView(
+                        viewModel = adminViewModel,
+                        driver = driver,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Aba Frota: mapa ao vivo, lista de entregadores e eventos de perímetro. */
+@Composable
+private fun AdminFleetView(state: AdminUiState, accountEmail: String, onLogout: () -> Unit) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
 
     val mapView = rememberMapViewWithLifecycle()
     var renderer by remember { mutableStateOf<FleetMapRenderer?>(null) }
@@ -145,12 +246,7 @@ fun AdminScaffold(userId: String, accountEmail: String) {
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                IconButton(onClick = {
-                    scope.launch {
-                        clearLocalData(context)
-                        FirebaseAuth.getInstance().signOut()
-                    }
-                }) {
+                IconButton(onClick = onLogout) {
                     Icon(Icons.Filled.Logout, contentDescription = "Sair", tint = Color.White)
                 }
             }

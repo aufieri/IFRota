@@ -39,6 +39,35 @@ object PolylineCodec {
         return result
     }
 
+    /**
+     * Codifica [path] em polyline de precisão [precision] (padrão 6, o `polyline6` do OSRM),
+     * formato usado no `legPath` das entregas criadas pelo administrador.
+     */
+    fun encode(path: List<Pair<Double, Double>>, precision: Int = 6): String {
+        val factor = Math.pow(10.0, precision.toDouble())
+        val out = StringBuilder()
+        var prevLat = 0L
+        var prevLon = 0L
+        for ((lat, lon) in path) {
+            val latE = Math.round(lat * factor)
+            val lonE = Math.round(lon * factor)
+            writeValue(out, latE - prevLat)
+            writeValue(out, lonE - prevLon)
+            prevLat = latE
+            prevLon = lonE
+        }
+        return out.toString()
+    }
+
+    private fun writeValue(out: StringBuilder, value: Long) {
+        var v = if (value < 0) (value shl 1).inv() else value shl 1
+        while (v >= 0x20) {
+            out.append((((v and 0x1f) or 0x20) + 63).toInt().toChar())
+            v = v shr 5
+        }
+        out.append((v + 63).toInt().toChar())
+    }
+
     /** Lê um valor com sinal a partir de [start]; devolve (valor, próximo índice). */
     private fun nextValue(encoded: String, start: Int): Pair<Long, Int> {
         var index = start

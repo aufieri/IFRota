@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.ifsp.ifrota.navigation.BottomTab
 import br.edu.ifsp.ifrota.navigation.MainTab
 import br.edu.ifsp.ifrota.ui.theme.BorderSubtle
 import br.edu.ifsp.ifrota.ui.theme.Green50
@@ -36,13 +37,13 @@ import br.edu.ifsp.ifrota.ui.theme.Text3
 
 /**
  * Barra inferior do protótipo. Abas novas (Entregas, Rotas, Histórico) entram apenas
- * acrescentando entradas em [MainTab].
+ * acrescentando entradas em [MainTab] (ou em `AdminTab`, na área administrativa).
  */
 @Composable
-fun IFRotaBottomBar(
-    tabs: List<MainTab>,
+fun <T : BottomTab> IFRotaBottomBar(
+    tabs: List<T>,
     currentRoute: String?,
-    onTabSelected: (MainTab) -> Unit,
+    onTabSelected: (T) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.background(Surface1)) {
@@ -69,7 +70,7 @@ fun IFRotaBottomBar(
 
 @Composable
 private fun BottomBarItem(
-    tab: MainTab,
+    tab: BottomTab,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
