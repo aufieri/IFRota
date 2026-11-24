@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -123,25 +121,6 @@ fun LoginView(
                     )
                 }
             )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Ainda não tem conta?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Text3
-                )
-                TextButton(onClick = onNavigateToSignUp) {
-                    Text(
-                        text = "Criar cadastro",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Green600
-                    )
-                }
-            }
 
             Text(
                 text = "Acesso restrito a entregadores cadastrados",
