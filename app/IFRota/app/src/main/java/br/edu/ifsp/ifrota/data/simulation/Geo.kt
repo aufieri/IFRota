@@ -23,4 +23,12 @@ object Geo {
         val x = cos(φ1) * sin(φ2) - sin(φ1) * cos(φ2) * cos(Δλ)
         return ((Math.toDegrees(atan2(y, x)) + 360) % 360).toFloat()
     }
+
+    /** Ponto a [meters] de (lat, lon) na direção [bearing] (graus, horário a partir do norte). */
+    fun offset(lat: Double, lon: Double, bearing: Float, meters: Double): Pair<Double, Double> {
+        val rad = Math.toRadians(bearing.toDouble())
+        val dLat = meters * cos(rad) / METERS_PER_DEGREE
+        val dLon = meters * sin(rad) / (METERS_PER_DEGREE * cos(Math.toRadians(lat)))
+        return (lat + dLat) to (lon + dLon)
+    }
 }

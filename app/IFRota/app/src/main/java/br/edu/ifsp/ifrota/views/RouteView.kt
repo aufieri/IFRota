@@ -27,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
@@ -60,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.edu.ifsp.ifrota.data.delivery.Delivery
 import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
 import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
+import br.edu.ifsp.ifrota.data.geofencing.GeofenceEvent
+import br.edu.ifsp.ifrota.data.geofencing.GeofenceTransition
 import br.edu.ifsp.ifrota.ui.components.ConfirmDeliverySheet
 import br.edu.ifsp.ifrota.ui.components.DeliveryNote
 import br.edu.ifsp.ifrota.ui.components.EmptyState
@@ -72,6 +76,7 @@ import br.edu.ifsp.ifrota.ui.map.DeliveryMapRenderer
 import br.edu.ifsp.ifrota.ui.map.MAP_STYLE_URL
 import br.edu.ifsp.ifrota.ui.map.OVERVIEW_ZOOM
 import br.edu.ifsp.ifrota.ui.map.rememberMapViewWithLifecycle
+import br.edu.ifsp.ifrota.ui.theme.Amber100
 import br.edu.ifsp.ifrota.ui.theme.Amber500
 import br.edu.ifsp.ifrota.ui.theme.Amber800
 import br.edu.ifsp.ifrota.ui.theme.BorderSubtle
@@ -105,6 +110,7 @@ fun RouteView(
     onOpenDelivery: (Delivery) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val geofenceEvents by viewModel.geofenceEvents.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val density = LocalDensity.current
     val mapView = rememberMapViewWithLifecycle()
@@ -175,7 +181,14 @@ fun RouteView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                RouteChip(state)
+                Column(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RouteChip(state)
+                    // Último evento de perímetro do trecho em andamento (a notificação também é enviada).
+                    geofenceEvents.firstOrNull()?.takeIf { state.tracksGeofences }?.let { GeofenceAlert(it) }
+                }
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -571,6 +584,41 @@ private fun RouteChip(state: DeliveryUiState) {
         if (detail != null) {
             Box(modifier = Modifier.size(width = 1.dp, height = 14.dp).background(BorderSubtle))
             Text(text = detail, style = MaterialTheme.typography.bodySmall, color = Text3)
+        }
+    }
+}
+
+/** Aviso de entrada/saída de perímetro (geofencing), logo abaixo do chip da rota. */
+@Composable
+private fun GeofenceAlert(event: GeofenceEvent) {
+    val entered = event.transition == GeofenceTransition.ENTER
+    Row(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(16.dp))
+            .background(if (entered) Green50 else Amber100, RoundedCornerShape(16.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (entered) Icons.Filled.Login else Icons.Filled.Logout,
+            contentDescription = null,
+            tint = if (entered) Green600 else Amber800,
+            modifier = Modifier.size(16.dp)
+        )
+        Column {
+            Text(
+                text = if (entered) "Entrou no perímetro" else "Saiu do perímetro",
+                style = MaterialTheme.typography.labelMedium,
+                color = Text1
+            )
+            Text(
+                text = event.geofence.name,
+                style = MaterialTheme.typography.bodySmall,
+                color = Text2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

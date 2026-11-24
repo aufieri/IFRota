@@ -6,6 +6,11 @@ import androidx.lifecycle.viewModelScope
 import br.edu.ifsp.ifrota.data.delivery.Delivery
 import br.edu.ifsp.ifrota.data.delivery.DeliveryStatus
 import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
+import br.edu.ifsp.ifrota.data.geofencing.DeliveryGeofences
+import br.edu.ifsp.ifrota.data.geofencing.Geofence
+import br.edu.ifsp.ifrota.data.geofencing.GeofenceEvent
+import br.edu.ifsp.ifrota.data.geofencing.GeofenceMonitor
+import br.edu.ifsp.ifrota.data.geofencing.VehiclePosition
 import br.edu.ifsp.ifrota.data.local.entity.DeliveryEntity
 import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
 import br.edu.ifsp.ifrota.data.repository.DeliveryRepository
@@ -14,6 +19,7 @@ import br.edu.ifsp.ifrota.data.routing.PolylineCodec
 import br.edu.ifsp.ifrota.data.simulation.DeliveryTrip
 import br.edu.ifsp.ifrota.data.simulation.TelemetryPoint
 import br.edu.ifsp.ifrota.data.simulation.VehicleStatus
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
@@ -121,6 +128,12 @@ data class DeliveryUiState(
 
     fun legSeconds(delivery: Delivery): Double = legs.getOrNull(delivery.order - 1)?.remainingSeconds(0) ?: 0.0
 
+    /** Perímetros monitorados agora: o CD, a parada anterior e a entrega atual. */
+    val geofences: List<Geofence> get() = DeliveryGeofences.forRoute(deliveries, current)
+
+    /** O veículo só é monitorado enquanto percorre um trecho (navegando, pausado ou no destino). */
+    val tracksGeofences: Boolean get() = vehicle != null && !allDone && phase != DeliveryPhase.PLANNING
+
     private companion object {
         /** Posição de repouso quando o motorista ainda não tem entregas: o CD. */
         val IDLE_POINT = TelemetryPoint(
@@ -150,12 +163,28 @@ private data class VehicleChoice(
  *
  * A fila só cresce pelo fim (o administrador acrescenta entregas), então um trecho em curso
  * nunca muda por baixo do motorista.
+ *
+ * A cada nova posição do veículo, o [GeofenceMonitor] verifica se ele entrou ou saiu de um
+ * perímetro ([DeliveryUiState.geofences]); cada transição vai para [onGeofenceEvent]
+ * (notificação) e para o histórico [geofenceEvents].
  */
 class DeliveryViewModel(
     vehicles: Flow<List<VehicleEntity>>,
     deliveries: Flow<List<DeliveryEntity>>,
-    private val markDone: suspend (deliveryId: String) -> Unit
+    private val markDone: suspend (deliveryId: String) -> Unit,
+    private val onGeofenceEvent: (GeofenceEvent) -> Unit = {},
+    /** Onde o estado é calculado (fora da main); os testes passam o próprio dispatcher. */
+    computeDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
+
+    private val geofenceMonitor = GeofenceMonitor(emptyList())
+
+    /** (entrega atual, índice no trecho) da última posição verificada. */
+    private var lastTracked: Pair<Int, Int>? = null
+    private val _geofenceEvents = MutableStateFlow<List<GeofenceEvent>>(emptyList())
+
+    /** Entradas e saídas de perímetro desta sessão, da mais recente para a mais antiga. */
+    val geofenceEvents: StateFlow<List<GeofenceEvent>> = _geofenceEvents.asStateFlow()
 
     private val vehicleChoice = MutableStateFlow(VehicleChoice())
     private val progress = MutableStateFlow(Progress())
@@ -187,7 +216,7 @@ class DeliveryViewModel(
             vehicleFixed = choice.fixed,
             loaded = true
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computeDispatcher)
      .stateIn(viewModelScope, SharingStarted.Eagerly, DeliveryUiState())
 
     init {
@@ -195,6 +224,27 @@ class DeliveryViewModel(
         viewModelScope.launch {
             state.collect { if (it.vehicle == null && it.phase != DeliveryPhase.PLANNING) end() }
         }
+        viewModelScope.launch { state.collect(::checkGeofences) }
+    }
+
+    private fun checkGeofences(state: DeliveryUiState) {
+        if (!state.tracksGeofences) return
+        val vehicle = state.vehicle ?: return
+        val position = state.position
+        // Trecho encerrado e recomeçado: o veículo "salta" de volta ao início do trecho. Esse
+        // salto não é um deslocamento real, então a posição passa a valer como a primeira.
+        val last = lastTracked
+        if (last != null && last.first == state.current && state.index < last.second) {
+            geofenceMonitor.reset(vehicle.id)
+        }
+        lastTracked = state.current to state.index
+        geofenceMonitor.setGeofences(state.geofences)
+        val events = geofenceMonitor.update(
+            VehiclePosition(vehicle.id, vehicle.plate, position.latitude, position.longitude)
+        )
+        if (events.isEmpty()) return
+        events.forEach(onGeofenceEvent)
+        _geofenceEvents.update { (events.reversed() + it).take(MAX_GEOFENCE_EVENTS) }
     }
 
     private fun tripOf(entity: DeliveryEntity): DeliveryTrip =
@@ -258,11 +308,16 @@ class DeliveryViewModel(
             progress.update { it.copy(phase = DeliveryPhase.ARRIVED) }
         }
     }
+
+    private companion object {
+        const val MAX_GEOFENCE_EVENTS = 50
+    }
 }
 
 class DeliveryViewModelFactory(
     private val vehicleRepository: VehicleRepository,
-    private val deliveryRepository: DeliveryRepository
+    private val deliveryRepository: DeliveryRepository,
+    private val onGeofenceEvent: (GeofenceEvent) -> Unit = {}
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -273,7 +328,8 @@ class DeliveryViewModelFactory(
         return DeliveryViewModel(
             vehicles = vehicleRepository.getMyVehicles(),
             deliveries = deliveryRepository.observeMyDeliveries(),
-            markDone = { deliveryRepository.markDone(it) }
+            markDone = { deliveryRepository.markDone(it) },
+            onGeofenceEvent = onGeofenceEvent
         ) as T
     }
 }

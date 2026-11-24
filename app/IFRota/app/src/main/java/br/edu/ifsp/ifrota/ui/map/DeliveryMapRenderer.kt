@@ -10,7 +10,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import br.edu.ifsp.ifrota.R
 import br.edu.ifsp.ifrota.data.delivery.DistributionCenter
+import br.edu.ifsp.ifrota.data.geofencing.Geofence
 import br.edu.ifsp.ifrota.data.simulation.DeliveryTrip
+import br.edu.ifsp.ifrota.data.simulation.Geo
 import br.edu.ifsp.ifrota.data.simulation.VehicleStatus
 import br.edu.ifsp.ifrota.ui.theme.Amber500
 import br.edu.ifsp.ifrota.ui.theme.Green600
@@ -29,6 +31,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
@@ -38,6 +41,7 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
+import org.maplibre.geojson.Polygon
 
 /** Estilo vetorial gratuito, sem chave, com dados do OpenStreetMap. */
 const val MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
@@ -54,6 +58,7 @@ private const val VEHICLE_SOURCE = "vehicle-source"
 private const val ROUTE_SOURCE = "route-source"
 private const val DESTINATION_SOURCE = "destination-source"
 private const val STOPS_SOURCE = "stops-source"
+private const val FENCE_SOURCE = "geofences-source"
 
 private const val KIND_CD = "cd"
 private const val KIND_DONE = "done"
@@ -94,6 +99,7 @@ class DeliveryMapRenderer(
     private val routeSource = GeoJsonSource(ROUTE_SOURCE)
     private val destinationSource = GeoJsonSource(DESTINATION_SOURCE)
     private val stopsSource = GeoJsonSource(STOPS_SOURCE)
+    private val fenceSource = GeoJsonSource(FENCE_SOURCE)
 
     private var state: DeliveryUiState? = null
     private var pose: Pose? = null
@@ -103,6 +109,27 @@ class DeliveryMapRenderer(
 
     init {
         VehicleStatus.entries.forEach { style.addImage(iconName(it), vanBitmap(context, it)) }
+
+        // Perímetros monitorados (geofencing), por baixo de tudo: âmbar com o veículo dentro.
+        val fenceColor = Expression.switchCase(
+            Expression.get("inside"), Expression.color(Amber500.toArgb()),
+            Expression.color(Green600.toArgb())
+        )
+        style.addSource(fenceSource)
+        style.addLayer(
+            FillLayer("geofences-fill", FENCE_SOURCE).withProperties(
+                PropertyFactory.fillColor(fenceColor),
+                PropertyFactory.fillOpacity(0.10f)
+            )
+        )
+        style.addLayer(
+            LineLayer("geofences-outline", FENCE_SOURCE).withProperties(
+                PropertyFactory.lineColor(fenceColor),
+                PropertyFactory.lineWidth(1.5f),
+                PropertyFactory.lineOpacity(0.7f),
+                PropertyFactory.lineDasharray(arrayOf(3f, 2f))
+            )
+        )
 
         style.addSource(routeSource)
         style.addLayer(
@@ -182,6 +209,7 @@ class DeliveryMapRenderer(
 
         val posLat = newState.position.latitude
         val posLon = newState.position.longitude
+        drawGeofences(newState)
         if (posLat !in -90.0..90.0 || posLon !in -180.0..180.0) {
             draw()
             return
@@ -272,6 +300,37 @@ class DeliveryMapRenderer(
         if (firstPerson && System.currentTimeMillis() >= cameraTransitionUntil) {
             map.moveCamera(CameraUpdateFactory.newCameraPosition(driverCamera(p)))
         }
+    }
+
+    /**
+     * Círculos dos perímetros, desenhados por tick (não por quadro). "Dentro" aqui é só visual,
+     * pela distância até a posição do tick; quem decide as notificações é o GeofenceMonitor.
+     */
+    private fun drawGeofences(s: DeliveryUiState) {
+        if (!s.hasDeliveries) {
+            fenceSource.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+            return
+        }
+        val position = s.position
+        fenceSource.setGeoJson(
+            FeatureCollection.fromFeatures(s.geofences.map { fence ->
+                Feature.fromGeometry(circle(fence)).apply {
+                    addBooleanProperty(
+                        "inside",
+                        s.tracksGeofences && fence.distanceTo(position.latitude, position.longitude) <= fence.radiusMeters
+                    )
+                }
+            })
+        )
+    }
+
+    /** Polígono de 64 lados aproximando o círculo do perímetro (raio em metros, não em pixels). */
+    private fun circle(fence: Geofence): Polygon {
+        val ring = (0..64).map { i ->
+            val (lat, lon) = Geo.offset(fence.latitude, fence.longitude, i * 360f / 64, fence.radiusMeters)
+            Point.fromLngLat(lon, lat)
+        }
+        return Polygon.fromLngLats(listOf(ring))
     }
 
     private fun driverCamera(pose: Pose) = CameraPosition.Builder()
