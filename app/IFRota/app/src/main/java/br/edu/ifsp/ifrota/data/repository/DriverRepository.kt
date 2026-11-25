@@ -18,7 +18,8 @@ class DriverRepository(
         name: String,
         email: String,
         phone: String,
-        cnh: String
+        cnh: String,
+        photoUri: String = ""
     ) {
         val profile = DriverEntity(
             id = userId,
@@ -26,6 +27,7 @@ class DriverRepository(
             email = email.trim(),
             phone = phone.trim(),
             cnh = cnh.trim(),
+            photoUri = photoUri,
             isSynced = false,
             isDeleted = false,
             updatedAt = System.currentTimeMillis()

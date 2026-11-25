@@ -15,7 +15,7 @@ import br.edu.ifsp.ifrota.data.local.entity.VehicleEntity
 
 @Database(
     entities = [VehicleEntity::class, DriverEntity::class, DeliveryEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -69,6 +69,13 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) = db.upgradeToV3()
         }
 
+        /** v5: coluna photoUri na tabela de motoristas. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE drivers ADD COLUMN photoUri TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         /** v4: tabela de entregas atribuídas pelo administrador. */
         internal val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -106,7 +113,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fleet_database"
                 )
-                    .addMigrations(MIGRATION_1_3, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_3, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

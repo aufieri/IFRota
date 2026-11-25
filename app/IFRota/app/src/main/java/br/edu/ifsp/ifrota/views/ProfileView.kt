@@ -1,5 +1,8 @@
 package br.edu.ifsp.ifrota.views
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -21,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -36,8 +40,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -67,6 +74,8 @@ import br.edu.ifsp.ifrota.ui.theme.Text1
 import br.edu.ifsp.ifrota.ui.theme.Text2
 import br.edu.ifsp.ifrota.ui.theme.Text3
 import br.edu.ifsp.ifrota.ui.viewmodel.ProfileViewModel
+import coil.compose.AsyncImage
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +93,11 @@ fun ProfileView(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val email = profile?.email?.takeIf { it.isNotBlank() } ?: accountEmail
+    val context = LocalContext.current
+
+    val photoPicker = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
+        uri?.let { viewModel.updatePhoto(it, context) }
+    }
 
     Column(
         modifier = Modifier
@@ -106,7 +120,13 @@ fun ProfileView(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    InitialsAvatar(initials = profile.initials(accountEmail))
+                    ProfileAvatar(
+                        photoUri = profile?.photoUri.orEmpty(),
+                        initials = profile.initials(accountEmail),
+                        onPickPhoto = {
+                            photoPicker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
+                        }
+                    )
 
                     Column(
                         modifier = Modifier.weight(1f),
@@ -302,6 +322,44 @@ fun ProfileView(
 
                 SecondaryButton(text = "Cancelar", onClick = viewModel::cancelEditing)
             }
+        }
+    }
+}
+
+@Composable
+private fun ProfileAvatar(
+    photoUri: String,
+    initials: String,
+    onPickPhoto: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.BottomEnd) {
+        if (photoUri.isNotBlank() && File(photoUri).exists()) {
+            AsyncImage(
+                model = File(photoUri),
+                contentDescription = "Foto de perfil",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(20.dp))
+            )
+        } else {
+            InitialsAvatar(initials = initials)
+        }
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .offset(x = 4.dp, y = 4.dp)
+                .background(Green600, CircleShape)
+                .clickable(onClick = onPickPhoto),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.CameraAlt,
+                contentDescription = "Alterar foto",
+                tint = Color.White,
+                modifier = Modifier.size(12.dp)
+            )
         }
     }
 }

@@ -16,6 +16,8 @@ data class DriverEntity(
     val cnh: String = "",
     val phone: String = "",
 
+    val photoUri: String = "",
+
     val isSynced: Boolean = false,
 
     val isDeleted: Boolean = false,

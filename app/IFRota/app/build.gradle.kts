@@ -74,4 +74,7 @@ dependencies {
 
     // Mapa (MapLibre + OpenFreeMap, dados do OpenStreetMap)
     implementation(libs.maplibre.android)
+
+    // Carregamento de imagens
+    implementation(libs.coil.compose)
 }

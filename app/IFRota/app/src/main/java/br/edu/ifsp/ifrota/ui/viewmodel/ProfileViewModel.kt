@@ -1,5 +1,7 @@
 package br.edu.ifsp.ifrota.ui.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 data class ProfileFormState(
     val name: String = "",
@@ -75,10 +78,33 @@ class ProfileViewModel(
                 name = state.name,
                 email = profile.value?.email?.takeIf { it.isNotBlank() } ?: accountEmail,
                 phone = state.phone,
-                cnh = state.cnh
+                cnh = state.cnh,
+                photoUri = profile.value?.photoUri.orEmpty()
             )
             cancelEditing()
         }
+    }
+
+    fun updatePhoto(uri: Uri, context: Context) {
+        viewModelScope.launch {
+            val path = copyPhotoToInternalStorage(context, uri)
+            val current = profile.value
+            driverRepository.saveMyProfile(
+                name = current?.name.orEmpty(),
+                email = current?.email?.takeIf { it.isNotBlank() } ?: accountEmail,
+                phone = current?.phone.orEmpty(),
+                cnh = current?.cnh.orEmpty(),
+                photoUri = path
+            )
+        }
+    }
+
+    private fun copyPhotoToInternalStorage(context: Context, uri: Uri): String {
+        val file = File(context.filesDir, "profile_photo.jpg")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        return file.absolutePath
     }
 }
 
