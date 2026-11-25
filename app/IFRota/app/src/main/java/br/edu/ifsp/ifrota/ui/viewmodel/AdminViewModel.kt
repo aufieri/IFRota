@@ -30,6 +30,17 @@ sealed interface DriversState {
     data class Error(val message: String) : DriversState
 }
 
+/** Veículos de todos os motoristas, agrupados pelo dono: [Loading] até o primeiro resultado. */
+sealed interface VehiclesState {
+    data object Loading : VehiclesState
+    data class Ready(val byDriver: Map<String, List<AdminVehicle>>) : VehiclesState
+    data class Error(val message: String) : VehiclesState
+
+    /** Veículos do motorista, ou null enquanto carrega ou se a leitura falhou. */
+    fun of(driverId: String): List<AdminVehicle>? =
+        if (this is Ready) byDriver[driverId].orEmpty() else null
+}
+
 data class CreateDeliveriesUiState(
     val quantity: Int = DemoDeliveryGenerator.DEFAULT_QUANTITY,
     val isCreating: Boolean = false,
@@ -48,11 +59,15 @@ class AdminViewModel(
         .catch { emit(DriversState.Error("Não foi possível carregar os motoristas. Verifique a conexão e as permissões da conta.")) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DriversState.Loading)
 
-    /** Veículos cadastrados, agrupados pelo motorista dono. */
-    val vehiclesByDriver: StateFlow<Map<String, List<AdminVehicle>>> = repository.observeVehicles()
-        .map { list -> list.groupBy { it.ownerId } }
-        .catch { emit(emptyMap()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+    /**
+     * Veículos cadastrados, agrupados pelo motorista dono. Uma falha (ex.: regras do Firestore
+     * sem leitura de `vehicles` para o administrador) vira [VehiclesState.Error], para a tela não
+     * dizer "sem veículo" quando na verdade a leitura foi recusada.
+     */
+    val vehicles: StateFlow<VehiclesState> = repository.observeVehicles()
+        .map<List<AdminVehicle>, VehiclesState> { list -> VehiclesState.Ready(list.groupBy { it.ownerId }) }
+        .catch { emit(VehiclesState.Error("Não foi possível carregar os veículos. Verifique a conexão e as permissões da conta.")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VehiclesState.Loading)
 
     private val _create = MutableStateFlow(CreateDeliveriesUiState())
     val create: StateFlow<CreateDeliveriesUiState> = _create.asStateFlow()

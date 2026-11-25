@@ -53,7 +53,7 @@ fun AdminDriversView(
     onOpenDriver: (AdminDriver) -> Unit
 ) {
     val state by viewModel.drivers.collectAsStateWithLifecycle()
-    val vehicles by viewModel.vehiclesByDriver.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxSize().background(Surface2)) {
         GreenHeader {
@@ -107,7 +107,7 @@ fun AdminDriversView(
                         items(s.drivers, key = { it.id }) { driver ->
                             DriverCard(
                                 driver = driver,
-                                vehicleCount = vehicles[driver.id].orEmpty().size,
+                                vehicleCount = vehicles.of(driver.id)?.size,
                                 onClick = { onOpenDriver(driver) }
                             )
                         }
@@ -118,7 +118,8 @@ fun AdminDriversView(
 }
 
 @Composable
-private fun DriverCard(driver: AdminDriver, vehicleCount: Int, onClick: () -> Unit) {
+/** [vehicleCount] é null enquanto os veículos carregam ou se a leitura falhou: o chip some. */
+private fun DriverCard(driver: AdminDriver, vehicleCount: Int?, onClick: () -> Unit) {
     IFRotaCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -146,13 +147,15 @@ private fun DriverCard(driver: AdminDriver, vehicleCount: Int, onClick: () -> Un
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MetaChip(
-                        when (vehicleCount) {
-                            0 -> "Sem veículo"
-                            1 -> "1 veículo"
-                            else -> "$vehicleCount veículos"
-                        }
-                    )
+                    if (vehicleCount != null) {
+                        MetaChip(
+                            when (vehicleCount) {
+                                0 -> "Sem veículo"
+                                1 -> "1 veículo"
+                                else -> "$vehicleCount veículos"
+                            }
+                        )
+                    }
                     if (driver.phone.isNotBlank()) MetaChip(driver.phone)
                 }
             }

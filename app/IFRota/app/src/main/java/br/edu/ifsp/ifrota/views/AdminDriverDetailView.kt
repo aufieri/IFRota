@@ -71,6 +71,7 @@ import br.edu.ifsp.ifrota.ui.theme.Text2
 import br.edu.ifsp.ifrota.ui.theme.Text3
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminMessage
 import br.edu.ifsp.ifrota.ui.viewmodel.AdminViewModel
+import br.edu.ifsp.ifrota.ui.viewmodel.VehiclesState
 
 /** Entregas de um motorista e a ação "Criar entregas" para ele. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,8 +84,7 @@ fun AdminDriverDetailView(
     val deliveries by remember(driver.id) { viewModel.deliveriesOf(driver.id) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val create by viewModel.create.collectAsStateWithLifecycle()
-    val vehiclesByDriver by viewModel.vehiclesByDriver.collectAsStateWithLifecycle()
-    val vehicles = vehiclesByDriver[driver.id].orEmpty()
+    val vehiclesState by viewModel.vehicles.collectAsStateWithLifecycle()
     var sheetOpen by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -173,16 +173,27 @@ fun AdminDriverDetailView(
 
             item { SectionLabel(text = "Veículos cadastrados") }
 
-            if (vehicles.isEmpty()) {
-                item {
-                    Text(
-                        text = "Este motorista ainda não cadastrou veículos. Sem veículo ele não consegue iniciar as entregas.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Text3
-                    )
+            when (val v = vehiclesState) {
+                VehiclesState.Loading -> item {
+                    Text("Carregando veículos…", style = MaterialTheme.typography.bodyMedium, color = Text3)
                 }
-            } else {
-                items(vehicles, key = { "vehicle-${it.id}" }) { VehicleRow(it) }
+                is VehiclesState.Error -> item {
+                    Text(v.message, style = MaterialTheme.typography.bodyMedium, color = Red600)
+                }
+                is VehiclesState.Ready -> {
+                    val vehicles = v.byDriver[driver.id].orEmpty()
+                    if (vehicles.isEmpty()) {
+                        item {
+                            Text(
+                                text = "Este motorista ainda não cadastrou veículos. Sem veículo ele não consegue iniciar as entregas.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Text3
+                            )
+                        }
+                    } else {
+                        items(vehicles, key = { "vehicle-${it.id}" }) { VehicleRow(it) }
+                    }
+                }
             }
 
             item { SectionLabel(text = "Entregas atribuídas") }
