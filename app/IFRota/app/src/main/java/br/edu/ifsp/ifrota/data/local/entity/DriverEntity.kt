@@ -2,6 +2,7 @@ package br.edu.ifsp.ifrota.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.google.firebase.firestore.Exclude
 
 /**
  * Perfil do entregador. O [id] é o UID do usuário no Firebase Auth, de modo que cada
@@ -16,6 +17,8 @@ data class DriverEntity(
     val cnh: String = "",
     val phone: String = "",
 
+    /** Caminho local da foto de perfil — não sincronizado com o Firestore. */
+    @get:Exclude
     val photoUri: String = "",
 
     val isSynced: Boolean = false,

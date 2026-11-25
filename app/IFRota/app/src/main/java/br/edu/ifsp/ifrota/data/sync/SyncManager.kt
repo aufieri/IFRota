@@ -195,7 +195,9 @@ class SyncManager(
 
         val localPendingIsNewer = local != null && !local.isSynced && local.updatedAt > remote.updatedAt
         if (!localPendingIsNewer) {
-            driverDao.upsert(remote)
+            // photoUri é local e não vem do Firestore — preserva o valor existente.
+            val toSave = if (local != null) remote.copy(photoUri = local.photoUri) else remote
+            driverDao.upsert(toSave)
         }
     }
 
