@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.edu.ifsp.ifrota.data.delivery.Delivery
@@ -49,6 +50,8 @@ import br.edu.ifsp.ifrota.ui.components.formatDistance
 import br.edu.ifsp.ifrota.ui.components.formatDuration
 import br.edu.ifsp.ifrota.ui.components.StatTile
 import br.edu.ifsp.ifrota.ui.components.initials
+import coil.compose.AsyncImage
+import java.io.File
 import br.edu.ifsp.ifrota.ui.theme.Amber100
 import br.edu.ifsp.ifrota.ui.theme.Amber800
 import br.edu.ifsp.ifrota.ui.theme.BorderSubtle
@@ -112,16 +115,27 @@ fun DashboardView(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
+                        .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
                         .border(1.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
                         .clickable(onClick = onOpenProfile),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = profile.initials(accountEmail),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
+                    val photoUri = profile?.photoUri.orEmpty()
+                    if (photoUri.isNotBlank() && File(photoUri).exists()) {
+                        AsyncImage(
+                            model = File(photoUri),
+                            contentDescription = "Foto de perfil",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Text(
+                            text = profile.initials(accountEmail),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
